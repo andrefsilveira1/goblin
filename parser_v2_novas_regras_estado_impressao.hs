@@ -8,6 +8,8 @@ import System.IO.Unsafe
 import Text.Parsec (ParsecT, eof)
 import GHC (Token)
 import Data.Binary.Get (remaining)
+import Data.Maybe (Maybe(Nothing))
+
 
 -- parsers para os tokens
 
@@ -51,6 +53,31 @@ intToken = tokenPrim show update_pos get_token where
 typeToken = tokenPrim show update_pos get_token where
   get_token (Type x) = Just (Type x)
   get_token _        = Nothing 
+
+functionToken = tokenPrim show update_pos get_token where
+  get_token Function = Just Function 
+  get_token _        = Nothing
+    
+openToken = tokenPrim show update_pos get_token where
+  get_token Begin = Just Begin
+  get_token _     = Nothing
+  
+closeToken = tokenPrim show update_pos get_token where
+  get_token End = Just End
+  get_token _   = Nothing
+
+typeToken = tokenPrim show update_pos get_token where
+  get_token (Type x) = Just (Type x)
+  get_token _        = Nothing
+
+subProgram = tokenPrim show update_pos get_token where
+  get_token Program = Just subProgram
+  get_token _       = Nothing
+  
+remainingSubPrograms = tokenPrim show update_pos get_token where
+  get_token Program = Just Program
+  get_token _       = Nothing
+
 
 update_pos :: SourcePos -> Token -> [Token] -> SourcePos
 update_pos pos _ (tok:_) = pos -- necessita melhoria
