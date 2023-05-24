@@ -61,6 +61,10 @@ functionToken = tokenPrim show update_pos get_token where
 openToken = tokenPrim show update_pos get_token where
   get_token Begin = Just Begin
   get_token _     = Nothing
+
+fparams = tokenPrim show update_pos get_token where
+  get_token Param = Just Param
+  get_token _     = Nothing
   
 closeToken = tokenPrim show update_pos get_token where
   get_token End = Just End
