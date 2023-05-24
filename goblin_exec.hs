@@ -8,7 +8,6 @@ import System.IO.Unsafe
 import Text.Parsec (ParsecT, eof)
 import GHC (Token)
 import Data.Binary.Get (remaining)
-import Data.Maybe (Maybe(Nothing))
 
 
 -- parsers para os tokens
