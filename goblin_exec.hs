@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use camelCase" #-}
 module Main (main) where
 
 import Lexer
@@ -58,7 +60,7 @@ functionToken = tokenPrim show update_pos get_token where
   get_token _        = Nothing
     
 openToken = tokenPrim show update_pos get_token where
-  get_token Begin = Just Begin
+  get_token openPar = Just openPar
   get_token _     = Nothing
 
 fparams = tokenPrim show update_pos get_token where
@@ -66,7 +68,7 @@ fparams = tokenPrim show update_pos get_token where
   get_token _     = Nothing
   
 closeToken = tokenPrim show update_pos get_token where
-  get_token End = Just End
+  get_token closePar = Just closePar
   get_token _   = Nothing
 
 subProgram = tokenPrim show update_pos get_token where
@@ -76,6 +78,10 @@ subProgram = tokenPrim show update_pos get_token where
 remainingSubPrograms = tokenPrim show update_pos get_token where
   get_token Program = Just Program
   get_token _       = Nothing
+
+typeVarToken = tokenPrim show update_pos get_token where
+  get_token typeVarToken = Just typeVarToken
+  get_token _            = Nothing
 
 update_pos :: SourcePos -> Token -> [Token] -> SourcePos
 update_pos pos _ (tok:_) = pos -- necessita melhoria
@@ -89,6 +95,7 @@ update_pos pos _ []      = pos
 --              |
 --              eof
 --              return (a:b:[c] ++ d ++ [e] ++ f ++ [g])
+-- <fparams> -> typeToken idToken 
 
 program :: ParsecT [Token] [(Token, Token)] IO ([Token])
 program = do
@@ -105,6 +112,12 @@ subPrograms = do
 remainingSubPrograms :: ParsecT [Token] [(Token, Token)] IO ([Token])
 remainingSubPrograms =
                       (subPrograms) <|> (return [])  
+
+fparams :: ParsecT [Token] [(Token, Token)] IO ([Token])
+fparams = do
+          a <- typeVarToken
+          b <- idToken
+          return (a:[b])
 
 subProgram :: ParsecT [Token] [(Token, Token)] IO ([Token])
 subProgram = do
