@@ -28,7 +28,10 @@ tokens :-
   >                                    { \s -> Greater}
   $digit+                              { \s -> Int (read s) }
   $alpha [$alpha $digit \_ \']*        { \s -> Id s }
-  \" $alpha [$alpha $digit ! \_ \']* \"  { \s -> String s}
+  \" $alpha [$alpha $digit ! \_ \']* \"{ \s -> String s}
+  function                             { \s -> Function s} 
+  "("                                  { \s -> openPar s}  
+  ")"                                  { \s -> closePar s}  
 
 {
 -- Each action has type :: String -> Token
