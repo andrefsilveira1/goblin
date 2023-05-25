@@ -69,18 +69,13 @@ closeToken = tokenPrim show update_pos get_token where
   get_token End = Just End
   get_token _   = Nothing
 
-typeToken = tokenPrim show update_pos get_token where
-  get_token (Type x) = Just (Type x)
-  get_token _        = Nothing
-
 subProgram = tokenPrim show update_pos get_token where
-  get_token Program = Just subProgram
+  get_token subProgram = Just subProgram
   get_token _       = Nothing
   
 remainingSubPrograms = tokenPrim show update_pos get_token where
   get_token Program = Just Program
   get_token _       = Nothing
-
 
 update_pos :: SourcePos -> Token -> [Token] -> SourcePos
 update_pos pos _ (tok:_) = pos -- necessita melhoria
