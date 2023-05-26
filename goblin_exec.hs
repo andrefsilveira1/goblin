@@ -61,7 +61,7 @@ functionToken = tokenPrim show update_pos get_token where
   get_token _        = Nothing
     
 openToken = tokenPrim show update_pos get_token where
-  get_token openPar = Just openPar
+  get_token OpenPar = Just openPar
   get_token _     = Nothing
 
 fparams = tokenPrim show update_pos get_token where
@@ -69,7 +69,7 @@ fparams = tokenPrim show update_pos get_token where
   get_token _     = Nothing
   
 closeToken = tokenPrim show update_pos get_token where
-  get_token closePar = Just closePar
+  get_token ClosePar = Just closePar
   get_token _   = Nothing
 
 subProgram = tokenPrim show update_pos get_token where
