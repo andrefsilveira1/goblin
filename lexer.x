@@ -31,7 +31,12 @@ tokens :-
   \" $alpha [$alpha $digit ! \_ \']* \"{ \s -> String s}
   function                             { \s -> Function s} 
   "("                                  { \s -> openPar s}  
-  ")"                                  { \s -> closePar s}  
+  ")"                                  { \s -> closePar s}
+  Int                                  { \s -> intToken s}
+  Float                                { \s -> floatToken s}
+  Boolean                              { \s -> booleanToken s}
+  String                               { \s -> stringToken s}
+  Char                                 { \s -> charToken s}  
 
 {
 -- Each action has type :: String -> Token
