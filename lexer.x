@@ -29,14 +29,15 @@ tokens :-
   $digit+                              { \s -> Int (read s) }
   $alpha [$alpha $digit \_ \']*        { \s -> Id s }
   \" $alpha [$alpha $digit ! \_ \']* \"{ \s -> String s}
-  function                             { \s -> Function s} 
+  function                             { \s -> Function } 
   "("                                  { \s -> OpenPar s}  
   ")"                                  { \s -> ClosePar s}
   Int                                  { \s -> Int s}
   Float                                { \s -> Float s}
-  Boolean                              { \s -> Bool s}
+  Boolean                              { \s -> Boolean s}
   String                               { \s -> String s}
   Char                                 { \s -> Char s}  
+  Param                                { \s -> Param}
 
 {
 -- Each action has type :: String -> Token
@@ -63,7 +64,8 @@ data Token =
   ClosePar String|
   Float   Float|
   Boolean Bool|
-  Char    Char
+  Char    Char|
+  Param
   deriving (Eq,Show)
 
 getTokens fn = unsafePerformIO (getTokensAux fn)
