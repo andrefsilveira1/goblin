@@ -1,5 +1,5 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# HLINT ignore "Use camelCase" #-}
+-- {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+-- {-# HLINT ignore "Use camelCase" #-}
 module Main (main) where
 
 import Lexer
@@ -10,8 +10,6 @@ import System.IO.Unsafe
 import Text.Parsec (ParsecT, eof)
 import GHC (Token)
 import Data.Binary.Get (remaining)
-import Data.Maybe (Maybe(Nothing))
-
 
 -- parsers para os tokens
 
@@ -64,7 +62,7 @@ openToken = tokenPrim show update_pos get_token where
   get_token OpenPar = Just openPar
   get_token _     = Nothing
 
-fparams = tokenPrim show update_pos get_token where
+fparamsToken = tokenPrim show update_pos get_token where
   get_token Param = Just Param
   get_token _     = Nothing
   
@@ -72,28 +70,24 @@ closeToken = tokenPrim show update_pos get_token where
   get_token ClosePar = Just closePar
   get_token _   = Nothing
 
-subProgram = tokenPrim show update_pos get_token where
+subProgramToken = tokenPrim show update_pos get_token where
   get_token subProgram = Just subProgram
   get_token _       = Nothing
   
-remainingSubPrograms = tokenPrim show update_pos get_token where
-  get_token Program = Just Program
+remainingSubProgramsToken = tokenPrim show update_pos get_token where
+  get_token remainingSubPrograms = Just remainingSubPrograms
   get_token _       = Nothing
 
 typeVarToken = tokenPrim show update_pos get_token where
   get_token typeVarToken = Just typeVarToken
   get_token _            = Nothing
 
-intToken = tokenPrim show update_pos get_token where
-  get_token (Int x)     = Just (Int x)
-  get_token _            = Nothing
-
 floatToken = tokenPrim show update_pos get_token where 
-  get_token (Float x)   = Just (Float x)
+  get_token (Float x)    = Just (Float x)
   get_token _            = Nothing
 
 booleanToken = tokenPrim show update_pos get_token where 
-  get_token (Bool x)   = Just (Bool x)
+  get_token (Boolean x)     = Just (Boolean x)
   get_token _            = Nothing
 
 stringToken = tokenPrim show update_pos get_token where 
@@ -101,7 +95,7 @@ stringToken = tokenPrim show update_pos get_token where
   get_token _            = Nothing
 
 charToken = tokenPrim show update_pos get_token where 
-  get_token (Char x)   = Just (Char x)
+  get_token (Char x)     = Just (Char x)
   get_token _            = Nothing
 
   -- intToken = tokenPrim show update_pos get_token where
@@ -131,7 +125,7 @@ program = do
             return (a ++ b)
 subPrograms :: ParsecT [Token] [(Token, Token)] IO ([Token])
 subPrograms = do 
-                a <- subProgram
+                a <- subProgramToken
                 b <- remainingSubPrograms
                 return (a ++ b)
 
