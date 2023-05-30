@@ -26,46 +26,42 @@ tokens :-
   then                                 { \s -> Then}
   write                                { \s -> Write}
   >                                    { \s -> Greater}
-  $digit+                              { \s -> Int (read s) }
   $alpha [$alpha $digit \_ \']*        { \s -> Id s }
+  $digit+                              { \s -> Int (read s) }
   \" $alpha [$alpha $digit ! \_ \']* \"{ \s -> String s}
   function                             { \s -> Function } 
-  "("                                  { \s -> OpenPar s}  
-  ")"                                  { \s -> ClosePar s}
-  Int                                  { \s -> Int s}
+  "("                                  { \s -> OpenPar }  
+  ")"                                  { \s -> ClosePar}
   Float                                { \s -> Float s}
   Boolean                              { \s -> Boolean s}
-  String                               { \s -> String s}
   Char                                 { \s -> Char s}  
-  Param                                { \s -> Param}
 
 {
 -- Each action has type :: String -> Token
 
 -- The token type:
 data Token =
-  Program |
-  Var     |
-  Begin   |
-  End     |
-  Colon   |
-  SemiColon |
-  Assign    | 
-  If  |
-  Then |
-  Write |
-  Greater |
-  Type String |
-  Id String |
-  Int Int |
-  String String |
-  Function |
-  OpenPar  String |
-  ClosePar String|
-  Float   Float|
-  Boolean Bool|
-  Char    Char|
-  Param
+  Program         |
+  Var             |
+  Begin           |
+  End             |
+  Colon           |
+  SemiColon       |
+  Type     String |
+  Assign          | 
+  If              |
+  Then            |
+  Write           |
+  Greater         |
+  Id       String |
+  Int      Int    |
+  String   String |
+  Function        |
+  OpenPar         |
+  ClosePar        |
+  Float    String |
+  Boolean  String |
+  Char     String 
   deriving (Eq,Show)
 
 getTokens fn = unsafePerformIO (getTokensAux fn)

@@ -1,5 +1,3 @@
--- {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
--- {-# HLINT ignore "Use camelCase" #-}
 module Main (main) where
 
 import Lexer
@@ -7,9 +5,6 @@ import Text.Parsec
 import Control.Monad.IO.Class
 
 import System.IO.Unsafe
-import Text.Parsec (ParsecT, eof)
-import GHC (Token)
-import Data.Binary.Get (remaining)
 
 -- parsers para os tokens
 
@@ -58,42 +53,30 @@ functionToken = tokenPrim show update_pos get_token where
   get_token Function = Just Function 
   get_token _        = Nothing
     
-openToken = tokenPrim show update_pos get_token where
-  get_token OpenPar = Just openPar
+openParToken = tokenPrim show update_pos get_token where
+  get_token OpenPar = Just OpenPar
   get_token _     = Nothing
 
-fparamsToken = tokenPrim show update_pos get_token where
-  get_token Param = Just Param
-  get_token _     = Nothing
-  
 closeToken = tokenPrim show update_pos get_token where
-  get_token ClosePar = Just closePar
+  get_token ClosePar = Just ClosePar
   get_token _   = Nothing
-
-subProgramToken = tokenPrim show update_pos get_token where
-  get_token subProgram = Just subProgram
-  get_token _       = Nothing
   
-remainingSubProgramsToken = tokenPrim show update_pos get_token where
-  get_token remainingSubPrograms = Just remainingSubPrograms
-  get_token _       = Nothing
-
-typeVarToken = tokenPrim show update_pos get_token where
-  get_token typeVarToken = Just typeVarToken
-  get_token _            = Nothing
-
+floatToken :: ParsecT [Token] st IO (Token)
 floatToken = tokenPrim show update_pos get_token where 
-  get_token (Float x)    = Just (Float x)
-  get_token _            = Nothing
+  get_token (Float x)   = Just (Float x)
+  get_token _           = Nothing
 
+booleanToken :: ParsecT [Token] st IO (Token)
 booleanToken = tokenPrim show update_pos get_token where 
-  get_token (Boolean x)     = Just (Boolean x)
+  get_token (Boolean x)  = Just (Boolean x)
   get_token _            = Nothing
 
+stringToken :: ParsecT [Token] st IO (Token)
 stringToken = tokenPrim show update_pos get_token where 
   get_token (String x)   = Just (String x)
   get_token _            = Nothing
 
+charToken :: ParsecT [Token] st IO (Token)
 charToken = tokenPrim show update_pos get_token where 
   get_token (Char x)     = Just (Char x)
   get_token _            = Nothing
@@ -101,7 +84,6 @@ charToken = tokenPrim show update_pos get_token where
   -- intToken = tokenPrim show update_pos get_token where
   -- get_token (Int x) = Just (Int x)
   -- get_token _       = Nothing
-
 
 update_pos :: SourcePos -> Token -> [Token] -> SourcePos
 update_pos pos _ (tok:_) = pos -- necessita melhoria
@@ -125,7 +107,7 @@ program = do
             return (a ++ b)
 subPrograms :: ParsecT [Token] [(Token, Token)] IO ([Token])
 subPrograms = do 
-                a <- subProgramToken
+                a <- function
                 b <- remainingSubPrograms
                 return (a ++ b)
 
@@ -135,7 +117,7 @@ remainingSubPrograms =
 
 fparams :: ParsecT [Token] [(Token, Token)] IO ([Token])
 fparams = do
-          a <- typeVarToken
+          a <- typeToken
           b <- idToken
           return (a:[b])
 
@@ -158,14 +140,14 @@ function :: ParsecT [Token] [(Token,Token)] IO [(Token)]
 function = do 
              a <- functionToken
              b <- idToken
-             c <- openToken
-             d <- fparams
+             c <- openParToken
+             d <- fparams 
              e <- closeToken
              f <- typeToken
              g <- beginToken
              h <- stmts
              i <- endToken
-             return ([a] ++ [b] ++ [c]:d ++ [e] ++ [f] ++ [g]:h ++ [i] )
+             return ([a] ++ [b] ++ [c] ++ d ++ [e] ++ [f] ++ [g] ++ h ++ [i] )
 
 varDecl :: ParsecT [Token] [(Token,Token)] IO([Token])
 varDecl = do
@@ -228,7 +210,7 @@ parser :: [Token] -> IO (Either ParseError [Token])
 parser tokens = runParserT program [] "Error message" tokens
 
 main :: IO ()
-main = case unsafePerformIO (parser (getTokens "programaV1V2.pe")) of
+main = case unsafePerformIO (parser (getTokens "program.pe")) of
             { Left err -> print err; 
               Right ans -> print ans
             }
