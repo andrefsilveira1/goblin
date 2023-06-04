@@ -106,10 +106,10 @@ program = do
             eof
             return (a ++ b)
 subPrograms :: ParsecT [Token] [(Token, Token)] IO ([Token])
-subPrograms = do 
+subPrograms = (do 
                 a <- function
                 b <- remainingSubPrograms
-                return (a ++ b)
+                return (a ++ b)) <|> (return [])
 
 remainingSubPrograms :: ParsecT [Token] [(Token, Token)] IO ([Token])
 remainingSubPrograms =
