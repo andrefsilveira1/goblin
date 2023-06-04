@@ -1,5 +1,24 @@
-program main
-var x : int
-begin
-   x := 1
-end
+vars:
+
+num x;
+num y;
+
+
+functions:
+
+num sum(num first, num second) {
+	vars:
+	num result;
+
+	process:
+	result = first + second;
+
+	return result;
+} 
+
+
+process:
+
+x = 5;
+y = 2;
+sum(x, y);
