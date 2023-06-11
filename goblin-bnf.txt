@@ -30,4 +30,4 @@
 <stmts> -> <stmt> <remainingStmt>
 <remainingStmt> -> <stmts> | { }
 <stmt> -> (<assign> | ... ) <semiColonToken>
-<assing> -> <idToken> <equalToken> <exp>
+<assing> -> <idToken> <equalToken> <expression>

@@ -187,87 +187,46 @@ remainingSubPrograms =
 -- TODO: openCurlyBracketsToken, closeCurlyBracketsToken
 subProgramBody :: ParsecT [Token] [(Token, Token)] IO ([Token])
 subProgramBody = do 
-                a <- openCurlyBracketsToken
-                b <- varsBlock
-                c <- processBlock
-                d <- closeCurlyBracketsToken
-                return [a] ++ b ++ c ++ [d]
+                    a <- openCurlyBracketsToken
+                    b <- varsBlock
+                    c <- processBlock
+                    d <- closeCurlyBracketsToken
+                    return [a] ++ b ++ c ++ [d]
 
-
-
-
-
-
-
-
-
-
-subPrograms :: ParsecT [Token] [(Token, Token)] IO ([Token])
-subPrograms = (do 
-                a <- function
-                b <- remainingSubPrograms
-                return (a ++ b)) <|> (return [])
-
-remainingSubPrograms :: ParsecT [Token] [(Token, Token)] IO ([Token])
-remainingSubPrograms =
-                      (subPrograms) <|> (return [])  
-
-fparams :: ParsecT [Token] [(Token, Token)] IO ([Token])
-fparams = do
-          a <- typeToken
-          b <- idToken
-          return (a:[b])
-
-subProgram :: ParsecT [Token] [(Token, Token)] IO ([Token])
-subProgram = do
-               a <- function
-               return (a)
-                         
-principal :: ParsecT [Token] [(Token,Token)] IO ([Token])
-principal = do
-            a <- programToken 
-            b <- idToken 
-            c <- varToken
-            d <- varDecl
-            e <- beginToken 
-            f <- stmts
-            g <- endToken
-            return (a:b:[c] ++ d++ [e] ++ f ++ [g])
-function :: ParsecT [Token] [(Token,Token)] IO [(Token)]
-function = do 
-             a <- functionToken
-             b <- idToken
-             c <- openParToken
-             d <- fparams 
-             e <- closeToken
-             f <- typeToken
-             g <- beginToken
-             h <- stmts
-             i <- endToken
-             return ([a] ++ [b] ++ [c] ++ d ++ [e] ++ [f] ++ [g] ++ h ++ [i] )
-
+-- TODO: processBlockToken
+processBlock :: ParsecT [Token] [(Token, Token)] IO ([Token])
+processBlock = do 
+                  a <- processBlockToken
+                  b <- colonToken
+                  c <- stmts
+                  return [a] ++ [b] ++ c
 
 
 stmts :: ParsecT [Token] [(Token,Token)] IO([Token])
 stmts = do
-          first <- assign
+          first <- stmt
           next <- remaining_stmts
           return (first ++ next)
 
+
+stmt :: ParsecT [Token] [(Token,Token)] IO([Token])
+stmt = do
+          a <- assign
+          b <- semiColonToken
+          return (a ++ b)
+
+
+-- TODO: equalToken, expression
 assign :: ParsecT [Token] [(Token,Token)] IO([Token])
 assign = do
           a <- idToken
-          b <- assignToken
-          c <- intToken
+          b <- equalToken
+          c <- expression
           updateState(symtable_update (a, c))
           s <- getState
           liftIO (print s)
           return (a:b:[c])
 
-remaining_stmts :: ParsecT [Token] [(Token,Token)] IO([Token])
-remaining_stmts = (do a <- semiColonToken
-                      b <- assign
-                      return (a:b)) <|> (return [])
 
 -- funções para a tabela de símbolos
 
