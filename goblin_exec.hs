@@ -101,10 +101,56 @@ update_pos pos _ []      = pos
 
 program :: ParsecT [Token] [(Token, Token)] IO ([Token])
 program = do
-            a <- subPrograms
-            b <- principal
+            a <- varsBlock
+            b <- subprogramBlock
+            c <- processBlock
             eof
-            return (a ++ b)
+            return (a ++ b ++ c)
+
+-- TODO: varsBlockToken
+varsBlock :: ParsecT [Token] [(Token, Token)] IO ([Token])
+varsBlock = (do 
+              a <- varsBlockToken
+              b <- colonToken
+              c <- varDecls
+              return ([a] ++ b ++ c)) <|> (return [])
+
+varDecls :: ParsecT [Token] [(Token, Token)] IO ([Token])
+varDecls = (do 
+              a <- varDecl
+              b <- remainingVarDecls
+              return (a ++ b))
+
+-- TODO: semicolonToken
+varDecl :: ParsecT [Token] [(Token,Token)] IO([Token])
+varDecl = do
+            a <- typeVar
+            b <- idToken
+            c <- semicolonToken
+            updateState(symtable_insert (b, get_default_value a))
+            s <- getState
+            liftIO (print s)
+            return ([a]:[b]:[c])
+
+remainingVarDecls :: ParsecT [Token] [(Token, Token)] IO ([Token])
+remainingVarDecls = 
+                    (varDecl) <|> (return [])
+
+-- TODO: Checar se retorna lista ou não
+typeVar :: ParsecT [Token] [(Token, Token)] IO ([Token])
+typeVar = 
+          (numType) <|> (othersTypeToken)
+
+
+-- TODO: numSpecifier, numToken
+numType :: ParsecT [Token] [(Token, Token)] IO ([Token])
+numType = 
+          (numToken) <|>
+          (do 
+              a <- numToken
+              b <- numSpecifier
+              return [a] ++ numSpecifier)
+
 subPrograms :: ParsecT [Token] [(Token, Token)] IO ([Token])
 subPrograms = (do 
                 a <- function
@@ -149,15 +195,7 @@ function = do
              i <- endToken
              return ([a] ++ [b] ++ [c] ++ d ++ [e] ++ [f] ++ [g] ++ h ++ [i] )
 
-varDecl :: ParsecT [Token] [(Token,Token)] IO([Token])
-varDecl = do
-            a <- idToken
-            b <- colonToken
-            c <- typeToken
-            updateState(symtable_insert (a, get_default_value c))
-            s <- getState
-            liftIO (print s)
-            return (a:b:[c])
+
 
 stmts :: ParsecT [Token] [(Token,Token)] IO([Token])
 stmts = do
