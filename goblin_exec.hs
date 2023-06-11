@@ -151,6 +151,57 @@ numType =
               b <- numSpecifier
               return [a] ++ numSpecifier)
 
+
+-- TODO: subprogramsBlockToken
+suprogramsBlock :: ParsecT [Token] [(Token, Token)] IO ([Token])
+suprogramsBlock = (do 
+                    a <- subprogramsBlockToken
+                    b <- colonToken
+                    c <- subPrograms
+                    return [a] ++ [b] ++ c) <|> (return [])
+
+
+subPrograms :: ParsecT [Token] [(Token, Token)] IO ([Token])
+subPrograms = do 
+                a <- subProgram
+                b <- remainingSubPrograms
+                return a ++ b
+
+
+subProgram :: ParsecT [Token] [(Token, Token)] IO ([Token])
+subProgram = do 
+                a <- typeVar
+                b <- idToken
+                c <- openParToken
+                d <- parametersList
+                e <- closeParToken
+                f <- subProgramBody
+                return [a] ++ [b] ++ [c] ++ d ++ [e] ++ f
+
+
+remainingSubPrograms :: ParsecT [Token] [(Token, Token)] IO ([Token])
+remainingSubPrograms = 
+                      (subProgram) <|> (return [])
+
+
+-- TODO: openCurlyBracketsToken, closeCurlyBracketsToken
+subProgramBody :: ParsecT [Token] [(Token, Token)] IO ([Token])
+subProgramBody = do 
+                a <- openCurlyBracketsToken
+                b <- varsBlock
+                c <- processBlock
+                d <- closeCurlyBracketsToken
+                return [a] ++ b ++ c ++ [d]
+
+
+
+
+
+
+
+
+
+
 subPrograms :: ParsecT [Token] [(Token, Token)] IO ([Token])
 subPrograms = (do 
                 a <- function
