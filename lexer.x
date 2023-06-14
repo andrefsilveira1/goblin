@@ -15,21 +15,15 @@ tokens :-
   $white+                              ;
   "--".*                               ;
   program                              { \s -> Program }
-  var                                  { \s -> Var }
-  begin                                { \s -> Begin}
-  end                                  { \s -> End}
   :                                    { \s -> Colon}
   ";"                                  { \s -> SemiColon}
   int                                  { \s -> Type s}
-  :=                                   { \s -> Assign}
   if                                   { \s -> If}
   then                                 { \s -> Then}
   write                                { \s -> Write}
   >                                    { \s -> Greater}
-  $alpha [$alpha $digit \_ \']*        { \s -> Id s }
   $digit+                              { \s -> Int (read s) }
   \" $alpha [$alpha $digit ! \_ \']* \"{ \s -> String s}
-  function                             { \s -> Function } 
   "("                                  { \s -> OpenPar }  
   ")"                                  { \s -> ClosePar}
   Float                                { \s -> Float s}
@@ -41,9 +35,10 @@ tokens :-
   "{"                                  { \s -> OpenCurlyBrackets}
   "}"                                  { \s -> CloseCurlyBrackets}
   =                                    { \s -> Equals}
-  num                                  { \s -> Num}
+  num                                  { \s -> Num s}
   tempTemp                             { \s -> NumWithSpecification}
   ","                                  { \s -> Comma}
+  $alpha [$alpha $digit \_ \']*        { \s -> Id s }
 
 {
 -- Each action has type :: String -> Token
@@ -77,7 +72,7 @@ data Token =
   OpenCurlyBrackets    |
   CloseCurlyBrackets   |
   Equals               |
-  Num                  |
+  Num      String      |
   NumWithSpecification |
   Comma
   deriving (Eq,Show)

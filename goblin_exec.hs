@@ -8,25 +8,10 @@ import System.IO.Unsafe
 
 -- parsers para os tokens
 
-programToken = tokenPrim show update_pos get_token where
-  get_token Program = Just Program
-  get_token _       = Nothing
 
 idToken = tokenPrim show update_pos get_token where
   get_token (Id x) = Just (Id x)
   get_token _      = Nothing
-
-varToken = tokenPrim show update_pos get_token where
-  get_token Var = Just Var
-  get_token _   = Nothing  
-
-beginToken = tokenPrim show update_pos get_token where
-  get_token Begin = Just Begin
-  get_token _     = Nothing
-
-endToken = tokenPrim show update_pos get_token where
-  get_token End = Just End
-  get_token _   = Nothing
 
 semiColonToken :: ParsecT [Token] st IO (Token)
 semiColonToken = tokenPrim show update_pos get_token where
@@ -37,21 +22,13 @@ colonToken = tokenPrim show update_pos get_token where
   get_token Colon = Just Colon
   get_token _     = Nothing
 
-assignToken = tokenPrim show update_pos get_token where
-  get_token Assign = Just Assign
-  get_token _      = Nothing
-
 intToken = tokenPrim show update_pos get_token where
   get_token (Int x) = Just (Int x)
   get_token _       = Nothing
 
-typeToken = tokenPrim show update_pos get_token where
-  get_token (Type x) = Just (Type x)
-  get_token _        = Nothing 
-
-functionToken = tokenPrim show update_pos get_token where
-  get_token Function = Just Function 
-  get_token _        = Nothing
+-- typeToken = tokenPrim show update_pos get_token where
+--   get_token (Type x) = Just (Type x)
+--   get_token _        = Nothing 
     
 openParToken = tokenPrim show update_pos get_token where
   get_token OpenPar = Just OpenPar
@@ -86,7 +63,7 @@ equalsToken = tokenPrim show update_pos get_token where
   get_token _   = Nothing
 
 numToken = tokenPrim show update_pos get_token where
-  get_token Num = Just Num
+  get_token (Num x) = Just (Num x)
   get_token _   = Nothing
 
 numWithSpecificationToken = tokenPrim show update_pos get_token where
@@ -129,15 +106,10 @@ update_pos :: SourcePos -> Token -> [Token] -> SourcePos
 update_pos pos _ (tok:_) = pos -- necessita melhoria
 update_pos pos _ []      = pos  
 
+
+
+
 -- parsers para os não-terminais
--- <function> -> FUNCAO ID AP <fparams> FP DP TYPE BEGIN <stmts> END
--- function = do 
---              a <- funcaoToken
---              b <- idToken
---              |
---              eof
---              return (a:b:[c] ++ d ++ [e] ++ f ++ [g])
--- <fparams> -> typeToken idToken 
 
 program :: ParsecT [Token] [(Token, Token)] IO ([Token])
 program = do
@@ -287,7 +259,7 @@ assign = do
           return ([a] ++ [b] ++ [c])
 
 expression :: ParsecT [Token] [(Token,Token)] IO(Token)
-expression = intToken 
+expression = intToken <|> idToken
 
 -- <|> subProgramCall
 
@@ -318,7 +290,7 @@ expression = intToken
 -- funções para a tabela de símbolos
 
 get_default_value :: Token -> Token
-get_default_value (Type "int") = Int 0          
+get_default_value (Num "num") = Int 0
 
 symtable_insert :: (Token,Token) -> [(Token,Token)] -> [(Token,Token)]
 symtable_insert symbol []  = [symbol]

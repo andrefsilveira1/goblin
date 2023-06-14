@@ -1,0 +1,21 @@
+vars:
+
+num x1;
+num y1;
+
+
+subprograms:
+
+num sum(num first, num second) {
+	vars:
+	num result;
+
+	process:
+	result = first;
+} 
+
+
+process:
+
+x1 = 5;
+y2 = 2;
