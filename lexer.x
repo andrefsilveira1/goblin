@@ -35,33 +35,51 @@ tokens :-
   Float                                { \s -> Float s}
   Boolean                              { \s -> Boolean s}
   Char                                 { \s -> Char s}  
+  vars                                 { \s -> VarsBlock}
+  subprograms                          { \s -> SubprogramsBlock}
+  process                              { \s -> ProcessBlock}
+  "{"                                  { \s -> OpenCurlyBrackets}
+  "}"                                  { \s -> CloseCurlyBrackets}
+  =                                    { \s -> Equals}
+  num                                  { \s -> Num}
+  tempTemp                             { \s -> NumWithSpecification}
+  ","                                  { \s -> Comma}
 
 {
 -- Each action has type :: String -> Token
 
 -- The token type:
 data Token =
-  Program         |
-  Var             |
-  Begin           |
-  End             |
-  Colon           |
-  SemiColon       |
-  Type     String |
-  Assign          | 
-  If              |
-  Then            |
-  Write           |
-  Greater         |
-  Id       String |
-  Int      Int    |
-  String   String |
-  Function        |
-  OpenPar         |
-  ClosePar        |
-  Float    String |
-  Boolean  String |
-  Char     String 
+  Program              |
+  Var                  |
+  Begin                |
+  End                  |
+  Colon                |
+  SemiColon            |
+  Type     String      |
+  Assign               | 
+  If                   |
+  Then                 |
+  Write                |
+  Greater              |
+  Id       String      |
+  Int      Int         |
+  String   String      |
+  Function             |
+  OpenPar              |
+  ClosePar             |
+  Float    String      |
+  Char     String      |
+  Boolean  String      |
+  VarsBlock            |
+  SubprogramsBlock     |
+  ProcessBlock         |
+  OpenCurlyBrackets    |
+  CloseCurlyBrackets   |
+  Equals               |
+  Num                  |
+  NumWithSpecification |
+  Comma
   deriving (Eq,Show)
 
 getTokens fn = unsafePerformIO (getTokensAux fn)

@@ -57,10 +57,53 @@ openParToken = tokenPrim show update_pos get_token where
   get_token OpenPar = Just OpenPar
   get_token _     = Nothing
 
-closeToken = tokenPrim show update_pos get_token where
+closeParToken = tokenPrim show update_pos get_token where
   get_token ClosePar = Just ClosePar
   get_token _   = Nothing
   
+varsBlockToken = tokenPrim show update_pos get_token where
+  get_token VarsBlock = Just VarsBlock
+  get_token _   = Nothing
+
+processBlockToken = tokenPrim show update_pos get_token where
+  get_token ProcessBlock = Just ProcessBlock
+  get_token _   = Nothing
+
+subprogramsBlockToken = tokenPrim show update_pos get_token where
+  get_token SubprogramsBlock = Just SubprogramsBlock
+  get_token _   = Nothing
+
+openCurlyBracketsToken = tokenPrim show update_pos get_token where
+  get_token OpenCurlyBrackets = Just OpenCurlyBrackets
+  get_token _   = Nothing
+
+closeCurlyBracketsToken = tokenPrim show update_pos get_token where
+  get_token CloseCurlyBrackets = Just CloseCurlyBrackets
+  get_token _   = Nothing
+
+equalsToken = tokenPrim show update_pos get_token where
+  get_token Equals = Just Equals
+  get_token _   = Nothing
+
+numToken = tokenPrim show update_pos get_token where
+  get_token Num = Just Num
+  get_token _   = Nothing
+
+numWithSpecificationToken = tokenPrim show update_pos get_token where
+  get_token NumWithSpecification = Just NumWithSpecification
+  get_token _   = Nothing
+
+commaToken = tokenPrim show update_pos get_token where
+  get_token Comma = Just Comma
+  get_token _   = Nothing
+
+
+
+
+
+
+  
+
 floatToken :: ParsecT [Token] st IO (Token)
 floatToken = tokenPrim show update_pos get_token where 
   get_token (Float x)   = Just (Float x)
@@ -81,9 +124,6 @@ charToken = tokenPrim show update_pos get_token where
   get_token (Char x)     = Just (Char x)
   get_token _            = Nothing
 
-  -- intToken = tokenPrim show update_pos get_token where
-  -- get_token (Int x) = Just (Int x)
-  -- get_token _       = Nothing
 
 update_pos :: SourcePos -> Token -> [Token] -> SourcePos
 update_pos pos _ (tok:_) = pos -- necessita melhoria
@@ -102,18 +142,18 @@ update_pos pos _ []      = pos
 program :: ParsecT [Token] [(Token, Token)] IO ([Token])
 program = do
             a <- varsBlock
-            b <- subprogramBlock
+            b <- subprogramsBlock
             c <- processBlock
             eof
             return (a ++ b ++ c)
 
--- TODO: varsBlockToken
+
 varsBlock :: ParsecT [Token] [(Token, Token)] IO ([Token])
 varsBlock = (do 
               a <- varsBlockToken
               b <- colonToken
               c <- varDecls
-              return ([a] ++ b ++ c)) <|> (return [])
+              return ([a] ++ [b] ++ c)) <|> (return [])
 
 varDecls :: ParsecT [Token] [(Token, Token)] IO ([Token])
 varDecls = (do 
@@ -121,51 +161,47 @@ varDecls = (do
               b <- remainingVarDecls
               return (a ++ b))
 
--- TODO: semicolonToken
+
 varDecl :: ParsecT [Token] [(Token,Token)] IO([Token])
 varDecl = do
             a <- typeVar
             b <- idToken
-            c <- semicolonToken
+            c <- semiColonToken
             updateState(symtable_insert (b, get_default_value a))
             s <- getState
             liftIO (print s)
-            return ([a]:[b]:[c])
+            return ([a] ++ [b] ++ [c])
 
 remainingVarDecls :: ParsecT [Token] [(Token, Token)] IO ([Token])
 remainingVarDecls = 
                     (varDecl) <|> (return [])
 
--- TODO: Checar se retorna lista ou não
-typeVar :: ParsecT [Token] [(Token, Token)] IO ([Token])
+
+typeVar :: ParsecT [Token] [(Token, Token)] IO (Token)
 typeVar = 
-          (numType) <|> (othersTypeToken)
+          (numType) 
+          -- <|> (othersTypeToken)
 
 
--- TODO: numSpecifier, numToken
-numType :: ParsecT [Token] [(Token, Token)] IO ([Token])
+
+numType :: ParsecT [Token] [(Token, Token)] IO (Token)
 numType = 
-          (numToken) <|>
-          (do 
-              a <- numToken
-              b <- numSpecifier
-              return [a] ++ numSpecifier)
+          (numToken) <|> (numWithSpecificationToken)
 
 
--- TODO: subprogramsBlockToken
-suprogramsBlock :: ParsecT [Token] [(Token, Token)] IO ([Token])
-suprogramsBlock = (do 
+subprogramsBlock :: ParsecT [Token] [(Token, Token)] IO ([Token])
+subprogramsBlock = (do 
                     a <- subprogramsBlockToken
                     b <- colonToken
                     c <- subPrograms
-                    return [a] ++ [b] ++ c) <|> (return [])
+                    return ([a] ++ [b] ++ c)) <|> (return [])
 
 
 subPrograms :: ParsecT [Token] [(Token, Token)] IO ([Token])
 subPrograms = do 
                 a <- subProgram
                 b <- remainingSubPrograms
-                return a ++ b
+                return (a ++ b)
 
 
 subProgram :: ParsecT [Token] [(Token, Token)] IO ([Token])
@@ -176,7 +212,30 @@ subProgram = do
                 d <- parametersList
                 e <- closeParToken
                 f <- subProgramBody
-                return [a] ++ [b] ++ [c] ++ d ++ [e] ++ f
+                return ([a] ++ [b] ++ [c] ++ d ++ [e] ++ f)
+
+
+parametersList :: ParsecT [Token] [(Token, Token)] IO ([Token])
+parametersList = do 
+                a <- typeAndId
+                b <- remainingParameters
+                return (a ++ b)
+
+typeAndId :: ParsecT [Token] [(Token, Token)] IO ([Token])
+typeAndId = do 
+                a <- typeVar
+                b <- idToken
+                return ([a] ++ [b])
+
+remainingParameters :: ParsecT [Token] [(Token, Token)] IO ([Token])
+remainingParameters = (do 
+                a <- commaToken
+                b <- typeAndId
+                return ([a] ++ b)) <|> (return [])
+
+
+
+
 
 
 remainingSubPrograms :: ParsecT [Token] [(Token, Token)] IO ([Token])
@@ -184,28 +243,26 @@ remainingSubPrograms =
                       (subProgram) <|> (return [])
 
 
--- TODO: openCurlyBracketsToken, closeCurlyBracketsToken
 subProgramBody :: ParsecT [Token] [(Token, Token)] IO ([Token])
 subProgramBody = do 
                     a <- openCurlyBracketsToken
                     b <- varsBlock
                     c <- processBlock
                     d <- closeCurlyBracketsToken
-                    return [a] ++ b ++ c ++ [d]
+                    return ([a] ++ b ++ c ++ [d])
 
--- TODO: processBlockToken
 processBlock :: ParsecT [Token] [(Token, Token)] IO ([Token])
 processBlock = do 
                   a <- processBlockToken
                   b <- colonToken
                   c <- stmts
-                  return [a] ++ [b] ++ c
+                  return ([a] ++ [b] ++ c)
 
 
 stmts :: ParsecT [Token] [(Token,Token)] IO([Token])
 stmts = do
           first <- stmt
-          next <- remaining_stmts
+          next <- remainingStmts
           return (first ++ next)
 
 
@@ -213,19 +270,49 @@ stmt :: ParsecT [Token] [(Token,Token)] IO([Token])
 stmt = do
           a <- assign
           b <- semiColonToken
-          return (a ++ b)
+          return (a ++ [b])
 
+remainingStmts :: ParsecT [Token] [(Token,Token)] IO([Token])
+remainingStmts = 
+                (stmt) <|> (return [])
 
--- TODO: equalToken, expression
 assign :: ParsecT [Token] [(Token,Token)] IO([Token])
 assign = do
           a <- idToken
-          b <- equalToken
+          b <- equalsToken
           c <- expression
-          updateState(symtable_update (a, c))
-          s <- getState
-          liftIO (print s)
-          return (a:b:[c])
+          -- updateState(symtable_update (a, c))
+          -- s <- getState
+          -- liftIO (print s)
+          return ([a] ++ [b] ++ [c])
+
+expression :: ParsecT [Token] [(Token,Token)] IO(Token)
+expression = intToken 
+
+-- <|> subProgramCall
+
+-- subProgramCall :: ParsecT [Token] [(Token,Token)] IO([Token])
+-- subProgramCall = do 
+--                   a <- idToken
+--                   b <- openParToken
+--                   c <- argumentList
+--                   d <- closeParToken
+--                   e <- semiColonToken
+--                   return ([a] ++ [b] ++ c ++ [d] ++ [e])
+
+
+-- argumentList :: ParsecT [Token] [(Token,Token)] IO([Token])
+-- argumentList = do  
+--                   a <- idToken
+--                   b <- remainingArguments
+--                   return ([a] ++ b)
+
+
+-- remainingArguments :: ParsecT [Token] [(Token,Token)] IO([Token])
+-- remainingArguments = (do  
+--                   a <- commaToken
+--                   b <- argumentList
+--                   return ([a] ++ b)) <|> (return [])
 
 
 -- funções para a tabela de símbolos
