@@ -40,3 +40,9 @@ Se quiser mudar o arquivo de exemplo, para `program-readable.pe`, por exemplo, √
 ```
 ./parser program-readable.pe
 ```
+
+### Adicionando "hightlight" sint√°tico da linguagem ao Sublime
+Para adicionar o _sintax highlight_ do Goblin no _Sublime_ basta colocar o arquivo `goblin.sublime-syntax` dentro da seguinte pasta no Linux:
+```
+home/<user_name>/.config/sublime-text-3/Packages/User/
+```

@@ -1,23 +1,23 @@
 vars:
 
-num x;
-num y;
-num z;
+	num x;
+	num y;
+	num z;
 
 
 subprograms:
 
-num sum(num first, num second) {
-	vars:
-	num result;
+	num sum(num first, num second) {
+		vars:
+			num result;
 
-	process:
-	result = first + second;
-} 
+		process:
+			result = first + second;
+	} 
 
 
 process:
 
-x = 5 + 4;
-y = x;
-z = y + y + 1;
+	x = 5 + 4;
+	y = x;
+	z = y + y + 1;
