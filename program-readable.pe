@@ -11,11 +11,11 @@ num sum(num first, num second) {
 	num result;
 
 	process:
-	result = first;
+	result = 2;
 } 
 
 
 process:
 
-x1 = 5;
-y2 = 2;
+x1 = 5 + 4;
+y2 = x1;

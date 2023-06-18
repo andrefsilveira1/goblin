@@ -74,6 +74,10 @@ commaToken = tokenPrim show update_pos get_token where
   get_token Comma = Just Comma
   get_token _   = Nothing
 
+addToken = tokenPrim show update_pos get_token where
+  get_token Add = Just Add
+  get_token _   = Nothing
+
 
 
 
@@ -253,15 +257,29 @@ assign = do
           a <- idToken
           b <- equalsToken
           c <- expression
-          -- updateState(symtable_update (a, c))
-          -- s <- getState
-          -- liftIO (print s)
+          updateState(symtable_update (a, c))
+          s <- getState
+          liftIO (print s)
           return ([a] ++ [b] ++ [c])
 
 expression :: ParsecT [Token] [(Token,Token)] IO(Token)
-expression = intToken <|> idToken
+expression = try (do 
+                    a <- intToken
+                    b <- addToken
+                    c <- intToken
+                    return (evalOp a b c)) <|> 
+                  intToken <|> 
+                  varId
 
--- <|> subProgramCall
+varId :: ParsecT [Token] [(Token,Token)] IO(Token)
+varId = do 
+            a <- idToken
+            s <- getState
+            return (evalVar a s)
+
+
+                  -- <|> 
+                  -- subProgramCall
 
 -- subProgramCall :: ParsecT [Token] [(Token,Token)] IO([Token])
 -- subProgramCall = do 
@@ -288,6 +306,14 @@ expression = intToken <|> idToken
 
 
 -- funções para a tabela de símbolos
+
+evalOp :: Token -> Token -> Token -> Token
+evalOp (Int x) (Add) (Int y) = Int (x + y)
+
+evalVar :: Token -> [(Token, Token)]-> Token
+evalVar (Id x) ((Id id1, v1):t) = 
+                                if x == id1 then v1
+                                else evalVar (Id x) t
 
 get_default_value :: Token -> Token
 get_default_value (Num "num") = Int 0
@@ -317,7 +343,7 @@ parser :: [Token] -> IO (Either ParseError [Token])
 parser tokens = runParserT program [] "Error message" tokens
 
 main :: IO ()
-main = case unsafePerformIO (parser (getTokens "program.pe")) of
+main = case unsafePerformIO (parser (getTokens "program-readable.pe")) of
             { Left err -> print err; 
               Right ans -> print ans
             }

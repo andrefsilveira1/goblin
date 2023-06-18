@@ -39,6 +39,7 @@ tokens :-
   tempTemp                             { \s -> NumWithSpecification}
   ","                                  { \s -> Comma}
   $alpha [$alpha $digit \_ \']*        { \s -> Id s }
+  "+"                                  { \s -> Add}
 
 {
 -- Each action has type :: String -> Token
@@ -74,8 +75,9 @@ data Token =
   Equals               |
   Num      String      |
   NumWithSpecification |
-  Comma
-  deriving (Eq,Show)
+  Comma                |
+  Add
+  deriving (Eq,Show)   
 
 getTokens fn = unsafePerformIO (getTokensAux fn)
 
