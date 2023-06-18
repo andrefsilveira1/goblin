@@ -1,7 +1,8 @@
 vars:
 
-num x1;
-num y1;
+num x;
+num y;
+num z;
 
 
 subprograms:
@@ -17,5 +18,6 @@ num sum(num first, num second) {
 
 process:
 
-x1 = 5 + 4;
-y2 = x1;
+x = 5 + 4;
+y = x;
+z = y + y + 1;

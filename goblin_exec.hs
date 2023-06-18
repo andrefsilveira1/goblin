@@ -124,6 +124,12 @@ program = do
             return (a ++ b ++ c)
 
 
+
+
+
+
+-- ------------------------------varsBlock---------------------------
+
 varsBlock :: ParsecT [Token] [(Token, Token)] IO ([Token])
 varsBlock = (do 
               a <- varsBlockToken
@@ -138,7 +144,7 @@ varDecls = (do
               return (a ++ b))
 
 
-varDecl :: ParsecT [Token] [(Token,Token)] IO([Token])
+varDecl :: ParsecT [Token] [(Token,Token)] IO ([Token])
 varDecl = do
             a <- typeAndId
             b <- semiColonToken
@@ -147,8 +153,7 @@ varDecl = do
             return (a ++ [b])
 
 remainingVarDecls :: ParsecT [Token] [(Token, Token)] IO ([Token])
-remainingVarDecls = 
-                    (varDecl) <|> (return [])
+remainingVarDecls = (varDecls) <|> (return [])
 
 
 typeVar :: ParsecT [Token] [(Token, Token)] IO (Token)
@@ -162,6 +167,14 @@ numType :: ParsecT [Token] [(Token, Token)] IO (Token)
 numType = 
           (numToken) <|> (numWithSpecificationToken)
 
+
+
+
+
+
+
+
+-- ------------------------------subprogramsBlock---------------------------
 
 subprogramsBlock :: ParsecT [Token] [(Token, Token)] IO ([Token])
 subprogramsBlock = (do 
@@ -209,10 +222,6 @@ remainingParameters = (do
                 return ([a] ++ b)) <|> (return [])
 
 
-
-
-
-
 remainingSubPrograms :: ParsecT [Token] [(Token, Token)] IO ([Token])
 remainingSubPrograms = 
                       (subProgram) <|> (return [])
@@ -225,6 +234,15 @@ subProgramBody = do
                     c <- processBlock
                     d <- closeCurlyBracketsToken
                     return ([a] ++ b ++ c ++ [d])
+
+
+
+
+
+
+
+
+-- ------------------------------processBlock---------------------------
 
 processBlock :: ParsecT [Token] [(Token, Token)] IO ([Token])
 processBlock = do 
@@ -249,7 +267,7 @@ stmt = do
 
 remainingStmts :: ParsecT [Token] [(Token,Token)] IO ([Token])
 remainingStmts = 
-                (stmt) <|> (return [])
+                (stmts) <|> (return [])
 
 assign :: ParsecT [Token] [(Token,Token)] IO ([Token])
 assign = do
@@ -264,13 +282,16 @@ assign = do
 expression :: ParsecT [Token] [(Token,Token)] IO (Token)
 expression = try binOp <|> 
                 intToken <|> 
-                varId
+                varId 
+
+                -- <|> 
+                -- subProgramCall
 
 binOp :: ParsecT [Token] [(Token,Token)] IO (Token)
 binOp = do 
           a <- operand
           b <- op
-          c <- operand
+          c <- expression
           return (evalOp a b c)
 
 
@@ -287,10 +308,9 @@ varId = do
             return (evalVar a s)
 
 
-                  -- <|> 
-                  -- subProgramCall
+                  
 
--- subProgramCall :: ParsecT [Token] [(Token,Token)] IO([Token])
+-- subProgramCall :: ParsecT [Token] [(Token,Token)] IO ([Token])
 -- subProgramCall = do 
 --                   a <- idToken
 --                   b <- openParToken
@@ -300,18 +320,26 @@ varId = do
 --                   return ([a] ++ [b] ++ c ++ [d] ++ [e])
 
 
--- argumentList :: ParsecT [Token] [(Token,Token)] IO([Token])
+-- argumentList :: ParsecT [Token] [(Token,Token)] IO ([Token])
 -- argumentList = do  
 --                   a <- idToken
 --                   b <- remainingArguments
 --                   return ([a] ++ b)
 
 
--- remainingArguments :: ParsecT [Token] [(Token,Token)] IO([Token])
+-- remainingArguments :: ParsecT [Token] [(Token,Token)] IO ([Token])
 -- remainingArguments = (do  
 --                   a <- commaToken
 --                   b <- argumentList
 --                   return ([a] ++ b)) <|> (return [])
+
+
+
+
+
+
+
+
 
 
 -- funções para a tabela de símbolos
