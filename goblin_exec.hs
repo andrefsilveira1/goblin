@@ -10,72 +10,72 @@ import System.IO.Unsafe
 
 
 idToken = tokenPrim show update_pos get_token where
-  get_token (Id x) = Just (Id x)
+  get_token (Id x p) = Just (Id x p)
   get_token _      = Nothing
 
 semiColonToken :: ParsecT [Token] st IO (Token)
 semiColonToken = tokenPrim show update_pos get_token where
-  get_token SemiColon = Just SemiColon
+  get_token (SemiColon p) = Just (SemiColon p)
   get_token _         = Nothing
 
 colonToken = tokenPrim show update_pos get_token where
-  get_token Colon = Just Colon
+  get_token (Colon p) = Just (Colon p)
   get_token _     = Nothing
 
 intToken = tokenPrim show update_pos get_token where
-  get_token (Int x) = Just (Int x)
+  get_token (Int x p) = Just (Int x p)
   get_token _       = Nothing
 
 -- typeToken = tokenPrim show update_pos get_token where
---   get_token (Type x) = Just (Type x)
+--   get_token (Type (x) p) = Just (Type (x) p)
 --   get_token _        = Nothing 
     
 openParToken = tokenPrim show update_pos get_token where
-  get_token OpenPar = Just OpenPar
+  get_token (OpenPar p) = Just (OpenPar p)
   get_token _     = Nothing
 
 closeParToken = tokenPrim show update_pos get_token where
-  get_token ClosePar = Just ClosePar
+  get_token (ClosePar p) = Just (ClosePar p)
   get_token _   = Nothing
   
 varsBlockToken = tokenPrim show update_pos get_token where
-  get_token VarsBlock = Just VarsBlock
+  get_token (VarsBlock p) = Just (VarsBlock p)
   get_token _   = Nothing
 
 processBlockToken = tokenPrim show update_pos get_token where
-  get_token ProcessBlock = Just ProcessBlock
+  get_token (ProcessBlock p) = Just (ProcessBlock p)
   get_token _   = Nothing
 
 subprogramsBlockToken = tokenPrim show update_pos get_token where
-  get_token SubprogramsBlock = Just SubprogramsBlock
+  get_token (SubprogramsBlock p) = Just (SubprogramsBlock p)
   get_token _   = Nothing
 
 openCurlyBracketsToken = tokenPrim show update_pos get_token where
-  get_token OpenCurlyBrackets = Just OpenCurlyBrackets
+  get_token (OpenCurlyBrackets p) = Just (OpenCurlyBrackets p)
   get_token _   = Nothing
 
 closeCurlyBracketsToken = tokenPrim show update_pos get_token where
-  get_token CloseCurlyBrackets = Just CloseCurlyBrackets
+  get_token (CloseCurlyBrackets p) = Just (CloseCurlyBrackets p)
   get_token _   = Nothing
 
 equalsToken = tokenPrim show update_pos get_token where
-  get_token Equals = Just Equals
+  get_token (Equals p) = Just (Equals p)
   get_token _   = Nothing
 
 numToken = tokenPrim show update_pos get_token where
-  get_token (Num x) = Just (Num x)
+  get_token (Num x p) = Just (Num x p)
   get_token _   = Nothing
 
 numWithSpecificationToken = tokenPrim show update_pos get_token where
-  get_token NumWithSpecification = Just NumWithSpecification
+  get_token (NumWithSpecification p) = Just (NumWithSpecification p)
   get_token _   = Nothing
 
 commaToken = tokenPrim show update_pos get_token where
-  get_token Comma = Just Comma
+  get_token (Comma p) = Just (Comma p)
   get_token _   = Nothing
 
 addToken = tokenPrim show update_pos get_token where
-  get_token Add = Just Add
+  get_token (Add p) = Just (Add p)
   get_token _   = Nothing
 
 
@@ -87,22 +87,22 @@ addToken = tokenPrim show update_pos get_token where
 
 floatToken :: ParsecT [Token] st IO (Token)
 floatToken = tokenPrim show update_pos get_token where 
-  get_token (Float x)   = Just (Float x)
+  get_token (Float x p)   = Just (Float x p)
   get_token _           = Nothing
 
 booleanToken :: ParsecT [Token] st IO (Token)
 booleanToken = tokenPrim show update_pos get_token where 
-  get_token (Boolean x)  = Just (Boolean x)
+  get_token (Boolean x p)  = Just (Boolean x p)
   get_token _            = Nothing
 
 stringToken :: ParsecT [Token] st IO (Token)
 stringToken = tokenPrim show update_pos get_token where 
-  get_token (String x)   = Just (String x)
+  get_token (String x p)   = Just (String x p)
   get_token _            = Nothing
 
 charToken :: ParsecT [Token] st IO (Token)
 charToken = tokenPrim show update_pos get_token where 
-  get_token (Char x)     = Just (Char x)
+  get_token (Char x p)     = Just (Char x p)
   get_token _            = Nothing
 
 
@@ -345,15 +345,15 @@ varId = do
 -- funções para a tabela de símbolos
 
 evalOp :: Token -> Token -> Token -> Token
-evalOp (Int x) (Add) (Int y) = Int (x + y)
+evalOp (Int x p) (Add _) (Int y _) = Int (x + y) p
 
 evalVar :: Token -> [(Token, Token)]-> Token
-evalVar (Id x) ((Id id1, v1):t) = 
+evalVar (Id x p) ((Id id1 _, v1):t) = 
                                 if x == id1 then v1
-                                else evalVar (Id x) t
+                                else evalVar (Id x p) t
 
 get_default_value :: Token -> Token
-get_default_value (Num "num") = Int 0
+get_default_value (Num "num" p) = Int 0 p
 
 symtable_insert :: (Token,Token) -> [(Token,Token)] -> [(Token,Token)]
 symtable_insert symbol []  = [symbol]
