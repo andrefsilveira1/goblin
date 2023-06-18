@@ -11,7 +11,7 @@ num sum(num first, num second) {
 	num result;
 
 	process:
-	result = 2;
+	result = first + second;
 } 
 
 

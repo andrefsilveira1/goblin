@@ -140,13 +140,11 @@ varDecls = (do
 
 varDecl :: ParsecT [Token] [(Token,Token)] IO([Token])
 varDecl = do
-            a <- typeVar
-            b <- idToken
-            c <- semiColonToken
-            updateState(symtable_insert (b, get_default_value a))
+            a <- typeAndId
+            b <- semiColonToken
             s <- getState
             liftIO (print s)
-            return ([a] ++ [b] ++ [c])
+            return (a ++ [b])
 
 remainingVarDecls :: ParsecT [Token] [(Token, Token)] IO ([Token])
 remainingVarDecls = 
@@ -201,6 +199,7 @@ typeAndId :: ParsecT [Token] [(Token, Token)] IO ([Token])
 typeAndId = do 
                 a <- typeVar
                 b <- idToken
+                updateState(symtable_insert (b, get_default_value a))
                 return ([a] ++ [b])
 
 remainingParameters :: ParsecT [Token] [(Token, Token)] IO ([Token])
@@ -235,24 +234,24 @@ processBlock = do
                   return ([a] ++ [b] ++ c)
 
 
-stmts :: ParsecT [Token] [(Token,Token)] IO([Token])
+stmts :: ParsecT [Token] [(Token,Token)] IO ([Token])
 stmts = do
           first <- stmt
           next <- remainingStmts
           return (first ++ next)
 
 
-stmt :: ParsecT [Token] [(Token,Token)] IO([Token])
+stmt :: ParsecT [Token] [(Token,Token)] IO ([Token])
 stmt = do
           a <- assign
           b <- semiColonToken
           return (a ++ [b])
 
-remainingStmts :: ParsecT [Token] [(Token,Token)] IO([Token])
+remainingStmts :: ParsecT [Token] [(Token,Token)] IO ([Token])
 remainingStmts = 
                 (stmt) <|> (return [])
 
-assign :: ParsecT [Token] [(Token,Token)] IO([Token])
+assign :: ParsecT [Token] [(Token,Token)] IO ([Token])
 assign = do
           a <- idToken
           b <- equalsToken
@@ -262,16 +261,26 @@ assign = do
           liftIO (print s)
           return ([a] ++ [b] ++ [c])
 
-expression :: ParsecT [Token] [(Token,Token)] IO(Token)
-expression = try (do 
-                    a <- intToken
-                    b <- addToken
-                    c <- intToken
-                    return (evalOp a b c)) <|> 
-                  intToken <|> 
-                  varId
+expression :: ParsecT [Token] [(Token,Token)] IO (Token)
+expression = try binOp <|> 
+                intToken <|> 
+                varId
 
-varId :: ParsecT [Token] [(Token,Token)] IO(Token)
+binOp :: ParsecT [Token] [(Token,Token)] IO (Token)
+binOp = do 
+          a <- operand
+          b <- op
+          c <- operand
+          return (evalOp a b c)
+
+
+operand :: ParsecT [Token] [(Token,Token)] IO (Token)
+operand = varId <|> intToken
+
+op :: ParsecT [Token] [(Token,Token)] IO (Token)
+op = addToken
+
+varId :: ParsecT [Token] [(Token,Token)] IO (Token)
 varId = do 
             a <- idToken
             s <- getState
