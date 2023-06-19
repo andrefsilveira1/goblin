@@ -29,17 +29,12 @@ Para compilar o parser:
 ghc goblin_exec.hs lexer.hs -o parser
 ```
 
-Finalmente, para o parser ler uma arquivo de exemplo:
+Finalmente, para o parser ler um arquivo de exemplo:
 
 ```
 ./parser program.pe
 ```
 
-Se quiser mudar o arquivo de exemplo, para `program-readable.pe`, por exemplo, é necessário alterar o parâmetro do último parser do arquvo `goblin_exec.hs` para `program-readable.pe`, recompilar o arquivo do parser e rodar o seguinte comando:
-
-```
-./parser program-readable.pe
-```
 
 ### Adicionando "hightlight" sintático da linguagem ao Sublime
 Para adicionar o _sintax highlight_ do Goblin no _Sublime_ basta colocar o arquivo `goblin.sublime-syntax` dentro da seguinte pasta no Linux:

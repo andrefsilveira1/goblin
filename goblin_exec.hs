@@ -4,7 +4,9 @@ import Lexer
 import Text.Parsec
 import Control.Monad.IO.Class
 
+
 import System.IO.Unsafe
+import System.Environment
 
 -- parsers para os tokens
 
@@ -380,7 +382,8 @@ parser :: [Token] -> IO (Either ParseError [Token])
 parser tokens = runParserT program [] "Error message" tokens
 
 main :: IO ()
-main = case unsafePerformIO (parser (getTokens "program-readable.pe")) of
+main = do a <- getArgs
+          case unsafePerformIO (parser (getTokens (a !! 0))) of
             { Left err -> print err; 
               Right ans -> print ans
             }
