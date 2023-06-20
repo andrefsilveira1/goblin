@@ -8,6 +8,13 @@ import Control.Monad.IO.Class
 import System.IO.Unsafe
 import System.Environment
 
+
+-- Nossa memória que será o user state no parsec
+data Type = Inteiro Int | Flutuante Float | Registro String * [String * Type] | ...
+data type_table :: [Type]
+data memory :: [String * String * Type]
+
+
 -- parsers para os tokens
 
 
@@ -116,12 +123,12 @@ update_pos pos _ []      = pos
 
 
 -- parsers para os não-terminais
-
-program :: ParsecT [Token] [(Token, Token)] IO ([Token])
+typedef  
+program :: ParsecT [Token] [(Token, Token)] IO ([Token]) -- [(Token, Token)] define o tipo do user state
 program = do
             a <- varsBlock
             b <- subprogramsBlock
-            c <- processBlock
+            c <- processBlock 
             eof
             return (a ++ b ++ c)
 
