@@ -11,4 +11,33 @@ Utiliza-se o Parsec e o Alex através da linguagem **Haskel** para definir os te
 
 ### Execução:
 
-É necessário instalar previamente o Alex e o Parsec.
+É necessário instalar previamente a ferramenta `cabal` (podende estar presente na ferramenta `ghci`) e usá-lo para instalar o Alex e o Parsec.
+
+```
+cabal install alex
+cabal install parsec
+```
+Depois, para deixar a parte léxica disponível para o parsec, digite o comando abaixo:
+
+```
+alex lexer.x
+```
+
+Para compilar o parser:
+
+```
+ghc goblin_exec.hs lexer.hs -o parser
+```
+
+Finalmente, para o parser ler um arquivo de exemplo:
+
+```
+./parser program.pe
+```
+
+
+### Adicionando "hightlight" sintático da linguagem ao Sublime
+Para adicionar o _sintax highlight_ do Goblin no _Sublime_ basta colocar o arquivo `goblin.sublime-syntax` dentro da seguinte pasta no Linux:
+```
+home/<user_name>/.config/sublime-text-3/Packages/User/
+```

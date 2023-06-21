@@ -1,0 +1,33 @@
+
+<program> -> <varsBlock> <suprogramsBlock> <processBlock>
+
+
+
+<varsBlock> -> <varsBlockToken> <colonToken> <varDecls> | { }
+
+<varDecls> -> <varDecl> <remainingVarDecls>
+<remainingVarDecls> -> <varDecls> | { }
+<varDecl> -> <typeVar> <idToken> <semicolonToken>
+
+<typeVar> -> <numType> | ...
+<numType> -> <numToken> | <numToken> <numSpecifier>  
+<numSpecifier> -> (#1.#1)
+
+
+
+
+<suprogramsBlock> -> <subprogramsBlockToken> <colonToken> <subPrograms> | { }
+<subPrograms> -> <subProgram> <remainingSubPrograms>
+<subProgram> -> <typeVar> <idToken> <openParToken> <parametersList> <closeParToken> <subProgramBody>
+<remainingSubPrograms> -> <subProgram> | { }
+
+<subProgramBody> -> <openCurlyBracketsToken> <varsBlock> <processBlock> <closeCurlyBracketsToken>
+
+
+
+
+<processBlock> -> <processBlockToken> <colonToken> <stmts>
+<stmts> -> <stmt> <remainingStmt>
+<remainingStmt> -> <stmts> | { }
+<stmt> -> (<assign> | ... ) <semiColonToken>
+<assing> -> <idToken> <equalToken> <expression>
