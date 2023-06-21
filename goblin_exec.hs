@@ -80,6 +80,12 @@ addToken = tokenPrim show update_pos get_token where
   get_token (Add p) = Just (Add p)
   get_token _   = Nothing
 
+multToken = tokenPrim show update_pos get_token where
+  get_token (Mult p) = Just (Mult p)
+  get_token _   = Nothing
+
+
+
 
 
 
@@ -309,6 +315,9 @@ varId = do
             s <- getState
             return (evalVar a s)
 
+multOp :: ParsecT [Token] [(Token,Token)] IO (Token)
+multOP = multToken
+
 
                   
 
@@ -348,6 +357,7 @@ varId = do
 
 evalOp :: Token -> Token -> Token -> Token
 evalOp (Int x p) (Add _) (Int y _) = Int (x + y) p
+evalOp (Int x p) (Mult _) (Int y _) = Int (x * y) p
 
 evalVar :: Token -> [(Token, Token)]-> Token
 evalVar (Id x p) ((Id id1 _, v1):t) = 
