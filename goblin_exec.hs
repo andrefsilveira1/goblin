@@ -355,9 +355,6 @@ multOP = multToken
 
 -- funções para a tabela de símbolos
 
-evalMult :: Token -> Token -> Token -> Token
-evalMult (Int x p) (Mult _) (Int y _) = Int (x * y) p
-
 evalOp :: Token -> Token -> Token -> Token
 evalOp (Int x p) (Add _) (Int y _) = Int (x + y) p
 evalOp (Int x p) (Mult _) (Int y _) = Int (x * y) p
