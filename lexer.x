@@ -39,6 +39,7 @@ tokens :-
   ","                                   { \p s -> Comma (getLC p)}
   $alpha [$alpha $digit \_ \']*         { \p s -> Id s  (getLC p)}
   "+"                                   { \p s -> Add (getLC p)}
+  "*"                                   { \p s -> Mult (getLC p)}
 
 {
 -- Each action has type :: AlexPosn -> String -> Token
@@ -69,7 +70,8 @@ data Token =
   Num      String      (Int, Int) |
   NumWithSpecification (Int, Int) |
   Comma                (Int, Int) |
-  Add                  (Int, Int) 
+  Add                  (Int, Int) |
+  Mult                 (Int, Int)
   deriving (Eq,Show)   
 
 getLC (AlexPn _ l c) = (l, c) 
