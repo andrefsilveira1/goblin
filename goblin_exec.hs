@@ -360,7 +360,18 @@ varId = do
 evalOp :: Token -> Token -> Token -> Token
 evalOp (Int x p) (Add _) (Int y _) = Int (x + y) p
 
+[(x, 10), (y, 15)]
+[([ (x, Numeric 10), (y, Numeric 15) ], [_])]
+-- Formato antigo: [(Token, Token)]
 evalVar :: Token -> Memory-> Token
+evalVar t (vars, _):_) = evalVarAux t vars
+                              
+
+evalVarAux :: Token -> Variables -> Token
+evalVarAux (Id x p) ((name, Numeric v):lv) = 
+                                    if x == name then v
+                                    else evalVarAux (Id x p) lv
+
 evalVar (Id x p) ((Id id1 _, v1):t) = 
                                 if x == id1 then v1
                                 else evalVar (Id x p) t
