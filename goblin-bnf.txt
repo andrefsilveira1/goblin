@@ -33,4 +33,9 @@
 <assing> -> <idToken> <equalToken> <expression>
 
 
-<precedencia> -> <
+Ordem de precedência:
+
+<expr> -> <term> | <term> + <expr>
+<term> -> <factor> | <factor> * <term>
+<factor> -> ( <expr> ) | <Id>
+<id> -> <>
