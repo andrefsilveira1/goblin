@@ -92,6 +92,10 @@ powToken = tokenPrim show update_pos get_token where
   get_token (Pow p) = Just (Pow p)
   get_token _   = Nothing
 
+divToken = tokenPrim show update_pos get_token where
+  get_token (Div p) = Just (Div p)
+  get_token _   = Nothing
+
 
 
 
@@ -315,7 +319,7 @@ operand :: ParsecT [Token] [(Token,Token)] IO (Token)
 operand = varId <|> intToken
 
 op :: ParsecT [Token] [(Token,Token)] IO (Token)
-op = addToken <|> multToken <|> subToken <|> powToken
+op = addToken <|> multToken <|> subToken <|> powToken <|> divToken
 
 varId :: ParsecT [Token] [(Token,Token)] IO (Token)
 varId = do 
@@ -359,7 +363,6 @@ varId = do
 
 
 
-
 -- funções para a tabela de símbolos
 
 evalOp :: Token -> Token -> Token -> Token
@@ -367,6 +370,7 @@ evalOp (Int x p) (Add _) (Int y _) = Int (x + y) p
 evalOp (Int x p) (Sub _) (Int y _) = Int (x - y) p
 evalOp (Int x p) (Mult _) (Int y _) = Int (x * y) p
 evalOp (Int x p) (Pow _) (Int y _) = Int (x ^ y) p
+evalOp (Int x p) (Div _) (Int y _) = Int (x `div` y) p
 
 evalVar :: Token -> [(Token, Token)]-> Token
 evalVar (Id x p) ((Id id1 _, v1):t) = 

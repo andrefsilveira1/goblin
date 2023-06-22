@@ -42,6 +42,7 @@ tokens :-
   "*"                                   { \p s -> Mult (getLC p)}
   "-"                                   { \p s -> Sub (getLC p)}
   "^"                                   { \p s -> Pow (getLC p)}
+  "/"                                   { \p s -> Div (getLC p)}
 
 {
 -- Each action has type :: AlexPosn -> String -> Token
@@ -75,7 +76,8 @@ data Token =
   Add                  (Int, Int) |
   Sub                  (Int, Int) |
   Mult                 (Int, Int) |
-  Pow                  (Int, Int) 
+  Pow                  (Int, Int) |
+  Div                  (Int, Int) 
   deriving (Eq,Show)   
 
 getLC (AlexPn _ l c) = (l, c) 
