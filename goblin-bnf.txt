@@ -31,3 +31,6 @@
 <remainingStmt> -> <stmts> | { }
 <stmt> -> (<assign> | ... ) <semiColonToken>
 <assing> -> <idToken> <equalToken> <expression>
+
+
+<precedencia> -> <
