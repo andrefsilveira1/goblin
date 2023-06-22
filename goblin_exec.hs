@@ -287,7 +287,7 @@ assign = do
           a <- idToken
           b <- equalsToken
           c <- expression
-          updateState(symtable_update (a, c))
+          updateState(symtableUpdate (a, c))
           s <- getState
           liftIO (print s)
           return ([a] ++ [b] ++ [c])
@@ -364,7 +364,7 @@ evalOp (Int x p) (Add _) (Int y _) = Int (x + y) p
 [([ (x, Numeric 10), (y, Numeric 15) ], [_])]
 -- Formato antigo: [(Token, Token)]
 evalVar :: Token -> Memory-> Token
-evalVar t (vars, _):_) = evalVarAux t vars
+evalVar t ((vars, f):lm) = (evalVarAux t vars, f):lm
                               
 
 evalVarAux :: Token -> Variables -> Token
@@ -383,11 +383,15 @@ symtable_insert :: (Token,Token) -> Memory -> Memory
 symtable_insert symbol []  = [symbol]
 symtable_insert symbol symtable = symtable ++ [symbol]
 
-symtable_update :: (Token,Token) -> Memory -> Memory
-symtable_update _ [] = fail "variable not found"
-symtable_update (id1, v1) ((id2, v2):t) = 
-                               if id1 == id2 then (id1, v1) : t
-                               else (id2, v2) : symtable_update (id1, v1) t
+symtableUpdate :: (Token, Token) -> Memory -> Memory
+symtableUpdate _ [] = fail "variable not found"
+symtableUpdate id1 (vars, lf):lm) = (symtableUpdateAux id1 vars, lf):lm
+
+-- TODO
+symtableUpdateAux :: (Token, Token) -> Variables -> Memory
+symtableUpdateAux (Id id1 p, v1) ((name, Numeric v):lv) = 
+                               if id1 == name then (Id id1 p, v1):lv
+                               else (id2, v2) : symtableUpdate (id1, v1) t
 
 symtable_remove :: (Token,Token) -> Memory -> Memory
 symtable_remove _ [] = fail "variable not found"
