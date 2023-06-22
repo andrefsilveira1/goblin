@@ -80,8 +80,20 @@ addToken = tokenPrim show update_pos get_token where
   get_token (Add p) = Just (Add p)
   get_token _   = Nothing
 
+subToken = tokenPrim show update_pos get_token where
+  get_token (Sub p) = Just (Sub p)
+  get_token _   = Nothing
+
 multToken = tokenPrim show update_pos get_token where
   get_token (Mult p) = Just (Mult p)
+  get_token _   = Nothing
+
+powToken = tokenPrim show update_pos get_token where
+  get_token (Pow p) = Just (Pow p)
+  get_token _   = Nothing
+
+divToken = tokenPrim show update_pos get_token where
+  get_token (Div p) = Just (Div p)
   get_token _   = Nothing
 
 
@@ -307,7 +319,7 @@ operand :: ParsecT [Token] [(Token,Token)] IO (Token)
 operand = varId <|> intToken
 
 op :: ParsecT [Token] [(Token,Token)] IO (Token)
-op = addToken
+op = addToken <|> multToken <|> subToken <|> powToken <|> divToken
 
 varId :: ParsecT [Token] [(Token,Token)] IO (Token)
 varId = do 
@@ -315,8 +327,7 @@ varId = do
             s <- getState
             return (evalVar a s)
 
-multOp :: ParsecT [Token] [(Token,Token)] IO (Token)
-multOP = multToken
+
 
 
                   
@@ -352,12 +363,14 @@ multOP = multToken
 
 
 
-
 -- funções para a tabela de símbolos
 
 evalOp :: Token -> Token -> Token -> Token
 evalOp (Int x p) (Add _) (Int y _) = Int (x + y) p
+evalOp (Int x p) (Sub _) (Int y _) = Int (x - y) p
 evalOp (Int x p) (Mult _) (Int y _) = Int (x * y) p
+evalOp (Int x p) (Pow _) (Int y _) = Int (x ^ y) p
+evalOp (Int x p) (Div _) (Int y _) = Int (x `div` y) p
 
 evalVar :: Token -> [(Token, Token)]-> Token
 evalVar (Id x p) ((Id id1 _, v1):t) = 
@@ -373,9 +386,9 @@ symtable_insert symbol symtable = symtable ++ [symbol]
 
 symtable_update :: (Token,Token) -> [(Token,Token)] -> [(Token,Token)]
 symtable_update _ [] = fail "variable not found"
-symtable_update (id1, v1) ((id2, v2):t) = 
-                               if id1 == id2 then (id1, v1) : t
-                               else (id2, v2) : symtable_update (id1, v1) t
+symtable_update (Id id1 p1, v1) ((Id id2 p2, v2):t) = 
+                               if id1 == id2 then (Id id1 p1, v1) : t
+                               else (Id id2 p2, v2) : symtable_update (Id id1 p1, v1) t
 
 symtable_remove :: (Token,Token) -> [(Token,Token)] -> [(Token,Token)]
 symtable_remove _ [] = fail "variable not found"
