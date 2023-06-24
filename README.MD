@@ -13,6 +13,12 @@ Utiliza-se o Parsec e o Alex através da linguagem **Haskel** para definir os te
 
 É necessário instalar previamente a ferramenta `cabal` (podende estar presente na ferramenta `ghci`) e usá-lo para instalar o Alex e o Parsec.
 
+Para instalar o `GHCup` (que instala `GHC`, `caba-install`, etc) no Linux, rode o seguinte comando:
+
+```
+curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
+```
+
 ```
 cabal install alex
 cabal install parsec

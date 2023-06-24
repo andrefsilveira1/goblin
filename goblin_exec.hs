@@ -8,6 +8,18 @@ import Control.Monad.IO.Class
 import System.IO.Unsafe
 import System.Environment
 
+
+
+
+data Type = Numeric Int
+type Variables = [(String, Type)] -- nome e tipo
+type Functions = [(String, [Token])] -- nome e corpo (TODO: descrever protocolo tbm)
+
+
+-- Nossa memória que será o user state no parsec
+type Memory = [(Variables, Functions)]
+
+
 -- parsers para os tokens
 
 
@@ -133,13 +145,12 @@ update_pos pos _ []      = pos
 
 
 
--- parsers para os não-terminais
-
-program :: ParsecT [Token] [(Token, Token)] IO ([Token])
+-- parsers para os não-terminais  
+program :: ParsecT [Token] Memory IO ([Token]) -- Memory define o tipo do user state
 program = do
             a <- varsBlock
             b <- subprogramsBlock
-            c <- processBlock
+            c <- processBlock 
             eof
             return (a ++ b ++ c)
 
@@ -150,40 +161,40 @@ program = do
 
 -- ------------------------------varsBlock---------------------------
 
-varsBlock :: ParsecT [Token] [(Token, Token)] IO ([Token])
+varsBlock :: ParsecT [Token] Memory IO ([Token])
 varsBlock = (do 
               a <- varsBlockToken
               b <- colonToken
               c <- varDecls
               return ([a] ++ [b] ++ c)) <|> (return [])
 
-varDecls :: ParsecT [Token] [(Token, Token)] IO ([Token])
+varDecls :: ParsecT [Token] Memory IO ([Token])
 varDecls = (do 
               a <- varDecl
               b <- remainingVarDecls
               return (a ++ b))
 
 
-varDecl :: ParsecT [Token] [(Token,Token)] IO ([Token])
+varDecl :: ParsecT [Token] Memory IO ([Token])
 varDecl = do
             a <- typeAndId
             b <- semiColonToken
             s <- getState
-            liftIO (print s)
+            -- liftIO (print s)
             return (a ++ [b])
 
-remainingVarDecls :: ParsecT [Token] [(Token, Token)] IO ([Token])
+remainingVarDecls :: ParsecT [Token] Memory IO ([Token])
 remainingVarDecls = (varDecls) <|> (return [])
 
 
-typeVar :: ParsecT [Token] [(Token, Token)] IO (Token)
+typeVar :: ParsecT [Token] Memory IO (Token)
 typeVar = 
           (numType) 
           -- <|> (othersTypeToken)
 
 
 
-numType :: ParsecT [Token] [(Token, Token)] IO (Token)
+numType :: ParsecT [Token] Memory IO (Token)
 numType = 
           (numToken) <|> (numWithSpecificationToken)
 
@@ -196,7 +207,7 @@ numType =
 
 -- ------------------------------subprogramsBlock---------------------------
 
-subprogramsBlock :: ParsecT [Token] [(Token, Token)] IO ([Token])
+subprogramsBlock :: ParsecT [Token] Memory IO ([Token])
 subprogramsBlock = (do 
                     a <- subprogramsBlockToken
                     b <- colonToken
@@ -204,14 +215,14 @@ subprogramsBlock = (do
                     return ([a] ++ [b] ++ c)) <|> (return [])
 
 
-subPrograms :: ParsecT [Token] [(Token, Token)] IO ([Token])
+subPrograms :: ParsecT [Token] Memory IO ([Token])
 subPrograms = do 
                 a <- subProgram
                 b <- remainingSubPrograms
                 return (a ++ b)
 
 
-subProgram :: ParsecT [Token] [(Token, Token)] IO ([Token])
+subProgram :: ParsecT [Token] Memory IO ([Token])
 subProgram = do 
                 a <- typeVar
                 b <- idToken
@@ -222,32 +233,32 @@ subProgram = do
                 return ([a] ++ [b] ++ [c] ++ d ++ [e] ++ f)
 
 
-parametersList :: ParsecT [Token] [(Token, Token)] IO ([Token])
+parametersList :: ParsecT [Token] Memory IO ([Token])
 parametersList = do 
                 a <- typeAndId
                 b <- remainingParameters
                 return (a ++ b)
 
-typeAndId :: ParsecT [Token] [(Token, Token)] IO ([Token])
+typeAndId :: ParsecT [Token] Memory IO ([Token])
 typeAndId = do 
                 a <- typeVar
                 b <- idToken
-                updateState(symtable_insert (b, get_default_value a))
+                updateState(symtable_insert_var (b, get_default_value a))
                 return ([a] ++ [b])
 
-remainingParameters :: ParsecT [Token] [(Token, Token)] IO ([Token])
+remainingParameters :: ParsecT [Token] Memory IO ([Token])
 remainingParameters = (do 
                 a <- commaToken
                 b <- typeAndId
                 return ([a] ++ b)) <|> (return [])
 
 
-remainingSubPrograms :: ParsecT [Token] [(Token, Token)] IO ([Token])
+remainingSubPrograms :: ParsecT [Token] Memory IO ([Token])
 remainingSubPrograms = 
                       (subProgram) <|> (return [])
 
 
-subProgramBody :: ParsecT [Token] [(Token, Token)] IO ([Token])
+subProgramBody :: ParsecT [Token] Memory IO ([Token])
 subProgramBody = do 
                     a <- openCurlyBracketsToken
                     b <- varsBlock
@@ -264,7 +275,7 @@ subProgramBody = do
 
 -- ------------------------------processBlock---------------------------
 
-processBlock :: ParsecT [Token] [(Token, Token)] IO ([Token])
+processBlock :: ParsecT [Token] Memory IO ([Token])
 processBlock = do 
                   a <- processBlockToken
                   b <- colonToken
@@ -272,34 +283,34 @@ processBlock = do
                   return ([a] ++ [b] ++ c)
 
 
-stmts :: ParsecT [Token] [(Token,Token)] IO ([Token])
+stmts :: ParsecT [Token] Memory IO ([Token])
 stmts = do
           first <- stmt
           next <- remainingStmts
           return (first ++ next)
 
 
-stmt :: ParsecT [Token] [(Token,Token)] IO ([Token])
+stmt :: ParsecT [Token] Memory IO ([Token])
 stmt = do
           a <- assign
           b <- semiColonToken
           return (a ++ [b])
 
-remainingStmts :: ParsecT [Token] [(Token,Token)] IO ([Token])
+remainingStmts :: ParsecT [Token] Memory IO ([Token])
 remainingStmts = 
                 (stmts) <|> (return [])
 
-assign :: ParsecT [Token] [(Token,Token)] IO ([Token])
+assign :: ParsecT [Token] Memory IO ([Token])
 assign = do
           a <- idToken
           b <- equalsToken
           c <- expression
-          updateState(symtable_update (a, c))
+          updateState(symtableUpdate (a, c))
           s <- getState
-          liftIO (print s)
+          -- liftIO (print s)
           return ([a] ++ [b] ++ [c])
 
-expression :: ParsecT [Token] [(Token,Token)] IO (Token)
+expression :: ParsecT [Token] Memory IO (Token)
 expression = try binOp <|> 
                 intToken <|> 
                 varId 
@@ -307,7 +318,7 @@ expression = try binOp <|>
                 -- <|> 
                 -- subProgramCall
 
-binOp :: ParsecT [Token] [(Token,Token)] IO (Token)
+binOp :: ParsecT [Token] Memory IO (Token)
 binOp = do 
           a <- operand
           b <- op
@@ -315,13 +326,13 @@ binOp = do
           return (evalOp a b c)
 
 
-operand :: ParsecT [Token] [(Token,Token)] IO (Token)
+operand :: ParsecT [Token] Memory IO (Token)
 operand = varId <|> intToken
 
-op :: ParsecT [Token] [(Token,Token)] IO (Token)
+op :: ParsecT [Token] Memory IO (Token)
 op = addToken <|> multToken <|> subToken <|> powToken <|> divToken
 
-varId :: ParsecT [Token] [(Token,Token)] IO (Token)
+varId :: ParsecT [Token] Memory IO (Token)
 varId = do 
             a <- idToken
             s <- getState
@@ -372,29 +383,50 @@ evalOp (Int x p) (Mult _) (Int y _) = Int (x * y) p
 evalOp (Int x p) (Pow _) (Int y _) = Int (x ^ y) p
 evalOp (Int x p) (Div _) (Int y _) = Int (x `div` y) p
 
-evalVar :: Token -> [(Token, Token)]-> Token
-evalVar (Id x p) ((Id id1 _, v1):t) = 
-                                if x == id1 then v1
-                                else evalVar (Id x p) t
+-- [(x, 10), (y, 15)]
+-- [([ (x, Numeric 10), (y, Numeric 15) ], [_])]
+-- Formato antigo: [(Token, Token)]
+
+
+evalVar :: Token -> Memory-> Token
+evalVar _ [] = error "variable not found"
+evalVar _ (([], f):lm) = error "variable not found"
+evalVar t ((vars, f):lm) = evalVarAux t vars
+                              
+
+-- TODO: Por que fail não aceito pelo compilador nessa função?
+evalVarAux :: Token -> Variables -> Token
+evalVarAux (Id x (l, c)) [] = error ("variable " ++ x ++ " not in scope at line " ++ show l ++ ", column " ++ show c)
+evalVarAux (Id x p) ((name, Numeric v):lv) = 
+                                    if x == name then Int v p
+                                    else evalVarAux (Id x p) lv
 
 get_default_value :: Token -> Token
 get_default_value (Num "num" p) = Int 0 p
 
-symtable_insert :: (Token,Token) -> [(Token,Token)] -> [(Token,Token)]
-symtable_insert symbol []  = [symbol]
-symtable_insert symbol symtable = symtable ++ [symbol]
 
-symtable_update :: (Token,Token) -> [(Token,Token)] -> [(Token,Token)]
-symtable_update _ [] = fail "variable not found"
-symtable_update (Id id1 p1, v1) ((Id id2 p2, v2):t) = 
-                               if id1 == id2 then (Id id1 p1, v1) : t
-                               else (Id id2 p2, v2) : symtable_update (Id id1 p1, v1) t
+symtable_insert_var :: (Token, Token) -> Memory -> Memory
+symtable_insert_var (Id name _, Int val _) []  = [([(name, Numeric val)], [])]
+symtable_insert_var (Id name _, Int val _) (([], f):lm)  = ([(name, Numeric val)], f):lm
+symtable_insert_var (Id name _, Int val _) ((vars, f):lm) = ([(name, Numeric val)] ++ vars, f):lm
 
-symtable_remove :: (Token,Token) -> [(Token,Token)] -> [(Token,Token)]
-symtable_remove _ [] = fail "variable not found"
-symtable_remove (id1, v1) ((id2, v2):t) = 
-                               if id1 == id2 then t
-                               else (id2, v2) : symtable_remove (id1, v1) t                               
+symtableUpdate :: (Token, Token) -> Memory -> Memory
+symtableUpdate _ [] = fail "variable not found"
+symtableUpdate _ (([], _):lm) = fail "variable not found"
+symtableUpdate idVal ((vars, lf):lm) = (symtableUpdateAux idVal vars, lf):lm
+
+symtableUpdateAux :: (Token, Token) -> Variables -> Variables
+symtableUpdateAux _ [] = fail "variable not found"
+symtableUpdateAux (Id id1 p, Int v1 p2) ((name, Numeric v):lv) = 
+                               if id1 == name then (id1, Numeric v1):lv
+                               else (name, Numeric v) : symtableUpdateAux (Id id1 p, Int v1 p2) lv
+
+
+-- symtable_remove :: (Token,Token) -> Memory -> Memory
+-- symtable_remove _ [] = fail "variable not found"
+-- symtable_remove (id1, v1) ((id2, v2):t) = 
+--                                if id1 == id2 then t
+--                                else (id2, v2) : symtable_remove (id1, v1) t                               
 
 -- parser para memória
 
