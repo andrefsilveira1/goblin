@@ -12,12 +12,12 @@ import System.Environment
 
 
 data Type = Numeric Int
-data Variables = [(String * Type)] -- nome e tipo
-data Functions = [(String * [Token])] -- nome e corpo (TODO: descrever protocolo tbm)
+type Variables = [(String, Type)] -- nome e tipo
+type Functions = [(String, [Token])] -- nome e corpo (TODO: descrever protocolo tbm)
 
 
 -- Nossa memória que será o user state no parsec
-data Memory :: [(Variables * Functions)]
+type Memory = [(Variables, Functions)]
 
 
 -- parsers para os tokens
@@ -225,7 +225,7 @@ typeAndId :: ParsecT [Token] Memory IO ([Token])
 typeAndId = do 
                 a <- typeVar
                 b <- idToken
-                updateState(symtable_insert (b, get_default_value a))
+                updateState(symtable_insert_var (b, get_default_value a))
                 return ([a] ++ [b])
 
 remainingParameters :: ParsecT [Token] Memory IO ([Token])
@@ -360,44 +360,44 @@ varId = do
 evalOp :: Token -> Token -> Token -> Token
 evalOp (Int x p) (Add _) (Int y _) = Int (x + y) p
 
-[(x, 10), (y, 15)]
-[([ (x, Numeric 10), (y, Numeric 15) ], [_])]
+-- [(x, 10), (y, 15)]
+-- [([ (x, Numeric 10), (y, Numeric 15) ], [_])]
 -- Formato antigo: [(Token, Token)]
 evalVar :: Token -> Memory-> Token
-evalVar t ((vars, f):lm) = (evalVarAux t vars, f):lm
+evalVar t ((vars, f):lm) = evalVarAux t vars
                               
 
 evalVarAux :: Token -> Variables -> Token
 evalVarAux (Id x p) ((name, Numeric v):lv) = 
-                                    if x == name then v
+                                    if x == name then Int v p
                                     else evalVarAux (Id x p) lv
 
-evalVar (Id x p) ((Id id1 _, v1):t) = 
-                                if x == id1 then v1
-                                else evalVar (Id x p) t
+-- evalVar (Id x p) ((Id id1 _, v1):t) = 
+--                                 if x == id1 then v1
+--                                 else evalVar (Id x p) t
 
 get_default_value :: Token -> Token
 get_default_value (Num "num" p) = Int 0 p
 
-symtable_insert :: (Token,Token) -> Memory -> Memory
-symtable_insert symbol []  = [symbol]
-symtable_insert symbol symtable = symtable ++ [symbol]
+symtable_insert_var :: (Token, Token) -> Memory -> Memory
+symtable_insert_var (Id name _, Int val _) (([], f):lm)  = ([(name, Numeric val)], f):lm
+symtable_insert_var (Id name _, Int val _) ((vars, f):lm) = ([(name, Numeric val)] ++ vars, f):lm
 
 symtableUpdate :: (Token, Token) -> Memory -> Memory
 symtableUpdate _ [] = fail "variable not found"
-symtableUpdate id1 (vars, lf):lm) = (symtableUpdateAux id1 vars, lf):lm
+symtableUpdate idVal ((vars, lf):lm) = (symtableUpdateAux idVal vars, lf):lm
 
 -- TODO
-symtableUpdateAux :: (Token, Token) -> Variables -> Memory
-symtableUpdateAux (Id id1 p, v1) ((name, Numeric v):lv) = 
-                               if id1 == name then (Id id1 p, v1):lv
-                               else (id2, v2) : symtableUpdate (id1, v1) t
+symtableUpdateAux :: (Token, Token) -> Variables -> Variables
+symtableUpdateAux (Id id1 p, Int v1 p2) ((name, Numeric v):lv) = 
+                               if id1 == name then (id1, Numeric v1):lv
+                               else (name, Numeric v) : symtableUpdate (Id id1 p, Int v1 p2) lv
 
-symtable_remove :: (Token,Token) -> Memory -> Memory
-symtable_remove _ [] = fail "variable not found"
-symtable_remove (id1, v1) ((id2, v2):t) = 
-                               if id1 == id2 then t
-                               else (id2, v2) : symtable_remove (id1, v1) t                               
+-- symtable_remove :: (Token,Token) -> Memory -> Memory
+-- symtable_remove _ [] = fail "variable not found"
+-- symtable_remove (id1, v1) ((id2, v2):t) = 
+--                                if id1 == id2 then t
+--                                else (id2, v2) : symtable_remove (id1, v1) t                               
 
 -- parser para memória
 
