@@ -162,7 +162,7 @@ varDecl = do
             a <- typeAndId
             b <- semiColonToken
             s <- getState
-            liftIO (print s)
+            -- liftIO (print s)
             return (a ++ [b])
 
 remainingVarDecls :: ParsecT [Token] Memory IO ([Token])
@@ -289,7 +289,7 @@ assign = do
           c <- expression
           updateState(symtableUpdate (a, c))
           s <- getState
-          liftIO (print s)
+          -- liftIO (print s)
           return ([a] ++ [b] ++ [c])
 
 expression :: ParsecT [Token] Memory IO (Token)
@@ -363,35 +363,41 @@ evalOp (Int x p) (Add _) (Int y _) = Int (x + y) p
 -- [(x, 10), (y, 15)]
 -- [([ (x, Numeric 10), (y, Numeric 15) ], [_])]
 -- Formato antigo: [(Token, Token)]
+
+
 evalVar :: Token -> Memory-> Token
+evalVar _ [] = error "variable not found"
+evalVar _ (([], f):lm) = error "variable not found"
 evalVar t ((vars, f):lm) = evalVarAux t vars
                               
 
+-- TODO: Por que fail não aceito pelo compilador nessa função?
 evalVarAux :: Token -> Variables -> Token
+evalVarAux (Id x (l, c)) [] = error ("variable " ++ x ++ " not in scope at line " ++ show l ++ ", column " ++ show c)
 evalVarAux (Id x p) ((name, Numeric v):lv) = 
                                     if x == name then Int v p
                                     else evalVarAux (Id x p) lv
-
--- evalVar (Id x p) ((Id id1 _, v1):t) = 
---                                 if x == id1 then v1
---                                 else evalVar (Id x p) t
 
 get_default_value :: Token -> Token
 get_default_value (Num "num" p) = Int 0 p
 
 symtable_insert_var :: (Token, Token) -> Memory -> Memory
+symtable_insert_var (Id name _, Int val _) []  = [([(name, Numeric val)], [])]
 symtable_insert_var (Id name _, Int val _) (([], f):lm)  = ([(name, Numeric val)], f):lm
 symtable_insert_var (Id name _, Int val _) ((vars, f):lm) = ([(name, Numeric val)] ++ vars, f):lm
 
 symtableUpdate :: (Token, Token) -> Memory -> Memory
 symtableUpdate _ [] = fail "variable not found"
+symtableUpdate _ (([], _):lm) = fail "variable not found"
 symtableUpdate idVal ((vars, lf):lm) = (symtableUpdateAux idVal vars, lf):lm
 
 -- TODO
 symtableUpdateAux :: (Token, Token) -> Variables -> Variables
+symtableUpdateAux _ [] = fail "variable not found"
 symtableUpdateAux (Id id1 p, Int v1 p2) ((name, Numeric v):lv) = 
                                if id1 == name then (id1, Numeric v1):lv
-                               else (name, Numeric v) : symtableUpdate (Id id1 p, Int v1 p2) lv
+                               else (name, Numeric v) : symtableUpdateAux (Id id1 p, Int v1 p2) lv
+
 
 -- symtable_remove :: (Token,Token) -> Memory -> Memory
 -- symtable_remove _ [] = fail "variable not found"
