@@ -3,6 +3,7 @@ module Main (main) where
 import Lexer
 import Text.Parsec
 import Control.Monad.IO.Class
+import Control.Monad
 
 
 import System.IO.Unsafe
@@ -13,12 +14,24 @@ import System.Environment
 
 data Type = Numeric Int
 type Variables = [(String, Type)] -- nome e tipo
-type Functions = [(String, [Token])] -- nome e corpo (TODO: descrever protocolo tbm)
-
+type Functions = [(String, [Token], [Token])] -- nome e corpo (TODO: descrever protocolo tbm)
+type Stack = [(Variables, Functions)]
 
 -- Nossa memória que será o user state no parsec
-type Memory = [(Variables, Functions)]
+type Memory = (Stack, Bool) -- stack de variáveis e funções e flag indicativa de execução 
 
+printMem :: Memory -> IO ()
+printMem (((vars, funs)):lm, isRunning) = print (printMemVars vars)
+
+printMemVars :: Variables -> String
+printMemVars  [] = []
+printMemVars ((name, Numeric val):lv) = name ++ " " ++ show val ++ ", " ++ printMemVars lv
+
+pushMemStack :: Memory -> Memory
+pushMemStack (stack:sl, ir) = ([stack, stack] ++ sl, ir)
+
+popMemStack :: Memory -> Memory
+popMemStack (stack:sl, ir) = (sl, ir)
 
 -- parsers para os tokens
 
@@ -150,12 +163,16 @@ program :: ParsecT [Token] Memory IO ([Token]) -- Memory define o tipo do user s
 program = do
             a <- varsBlock
             b <- subprogramsBlock
+            updateState(beginExecution)
             c <- processBlock 
             eof
             return (a ++ b ++ c)
 
+beginExecution :: Memory -> Memory
+beginExecution (stack, _) = (stack, True)
 
-
+isExecuting :: Memory -> Bool
+isExecuting (stack, ie) = ie
 
 
 
@@ -180,7 +197,7 @@ varDecl = do
             a <- typeAndId
             b <- semiColonToken
             s <- getState
-            -- liftIO (print s)
+            liftIO (printMem s)
             return (a ++ [b])
 
 remainingVarDecls :: ParsecT [Token] Memory IO ([Token])
@@ -226,10 +243,14 @@ subProgram :: ParsecT [Token] Memory IO ([Token])
 subProgram = do 
                 a <- typeVar
                 b <- idToken
+                updateState(pushMemStack)
                 c <- openParToken
                 d <- parametersList
                 e <- closeParToken
                 f <- subProgramBody
+                updateState(popMemStack)
+                g <- getState
+                updateState(symtable_insert_subprogram (b, d, f))
                 return ([a] ++ [b] ++ [c] ++ d ++ [e] ++ f)
 
 
@@ -243,6 +264,7 @@ typeAndId :: ParsecT [Token] Memory IO ([Token])
 typeAndId = do 
                 a <- typeVar
                 b <- idToken
+                c <- getState
                 updateState(symtable_insert_var (b, get_default_value a))
                 return ([a] ++ [b])
 
@@ -305,9 +327,10 @@ assign = do
           a <- idToken
           b <- equalsToken
           c <- expression
-          updateState(symtableUpdate (a, c))
-          s <- getState
-          -- liftIO (print s)
+          d <- getState
+          when (isExecuting d) (updateState(symtableUpdate (a, c)))
+          e <- getState
+          liftIO (printMem e)
           return ([a] ++ [b] ++ [c])
 
 expression :: ParsecT [Token] Memory IO (Token)
@@ -389,12 +412,12 @@ evalOp (Int x p) (Div _) (Int y _) = Int (x `div` y) p
 
 
 evalVar :: Token -> Memory-> Token
-evalVar _ [] = error "variable not found"
-evalVar _ (([], f):lm) = error "variable not found"
-evalVar t ((vars, f):lm) = evalVarAux t vars
+evalVar _ ([], _) = error "variable not found"
+evalVar _ (([], f):lm, _) = error "variable not found"
+evalVar t ((vars, f):lm, _) = evalVarAux t vars
                               
 
--- TODO: Por que fail não aceito pelo compilador nessa função?
+-- TODO: Por que fail não é aceito pelo compilador nessa função?
 evalVarAux :: Token -> Variables -> Token
 evalVarAux (Id x (l, c)) [] = error ("variable " ++ x ++ " not in scope at line " ++ show l ++ ", column " ++ show c)
 evalVarAux (Id x p) ((name, Numeric v):lv) = 
@@ -406,14 +429,24 @@ get_default_value (Num "num" p) = Int 0 p
 
 
 symtable_insert_var :: (Token, Token) -> Memory -> Memory
-symtable_insert_var (Id name _, Int val _) []  = [([(name, Numeric val)], [])]
-symtable_insert_var (Id name _, Int val _) (([], f):lm)  = ([(name, Numeric val)], f):lm
-symtable_insert_var (Id name _, Int val _) ((vars, f):lm) = ([(name, Numeric val)] ++ vars, f):lm
+symtable_insert_var (Id name _, varType) ([], ir) = ((addVarToMemory name varType [], []):[], ir)
+symtable_insert_var (Id name _, varType) ((vars, funs):lm, ir) = ((addVarToMemory name varType vars, funs):lm, ir)
 
+addVarToMemory :: String -> Token -> Variables -> Variables
+addVarToMemory name (Int val _) vars = (name, Numeric val):vars
+
+symtable_insert_subprogram :: (Token, [Token], [Token]) -> Memory -> Memory
+symtable_insert_subprogram (Id name _, parametersList, body) ([], ir)  = (([], addSubprogramToMemory name parametersList body []):[], ir)
+symtable_insert_subprogram (Id name _, parametersList, body)  ((vars, funs):lm, ir) = ((vars, addSubprogramToMemory name parametersList body funs):lm, ir)
+
+addSubprogramToMemory :: String -> [Token] -> [Token] -> Functions -> Functions
+addSubprogramToMemory name parametersList body funs = (name, parametersList, body):funs
+
+-- TODO: Por que fail não é aceito pelo compilador nessa função após o isRunning ser adicionado a memória?
 symtableUpdate :: (Token, Token) -> Memory -> Memory
-symtableUpdate _ [] = fail "variable not found"
-symtableUpdate _ (([], _):lm) = fail "variable not found"
-symtableUpdate idVal ((vars, lf):lm) = (symtableUpdateAux idVal vars, lf):lm
+symtableUpdate _ ([], _) = error "variable not found"
+symtableUpdate _ (([], _):lm, _) = error "variable not found"
+symtableUpdate idVal ((vars, lf):lm, ir) = ((symtableUpdateAux idVal vars, lf):lm, ir)
 
 symtableUpdateAux :: (Token, Token) -> Variables -> Variables
 symtableUpdateAux _ [] = fail "variable not found"
@@ -434,7 +467,7 @@ symtableUpdateAux (Id id1 p, Int v1 p2) ((name, Numeric v):lv) =
 -- invocação do parser para o símbolo de partida 
 
 parser :: [Token] -> IO (Either ParseError [Token])
-parser tokens = runParserT program [] "Error message" tokens
+parser tokens = runParserT program ([], False) "Error message" tokens
 
 main :: IO ()
 main = do a <- getArgs
