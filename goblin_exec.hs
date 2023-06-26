@@ -13,15 +13,34 @@ import System.Environment
 
 
 data Type = Numeric Int
-type Variables = [(String, Type)] -- nome e tipo
-type Functions = [(String, [Token], [Token])] -- nome e corpo (TODO: descrever protocolo tbm)
+type Variable = (String, Type) -- nome e tipo
+type Variables = [Variable] -- nome e tipo
+type Function = (String, [Token], [Token]) -- nome e corpo (TODO: descrever protocolo tbm)
+type Functions = [Function] 
 type Stack = [(Variables, Functions)]
 
 -- Nossa memória que será o user state no parsec
 type Memory = (Stack, Bool) -- stack de variáveis e funções e flag indicativa de execução 
 
+
+currentFunctions :: Stack -> Functions
+currentFunctions (s:_) = getFunctions s
+currentFunctions [] = []
+
+getFunctions :: (Variables, Functions) -> Functions
+getFunctions (_, funs) = funs
+
+
+currentVars :: Stack -> Variables
+currentVars (s:_) = getVars s
+currentVars [] = []
+
+getVars :: (Variables, Functions) -> Variables
+getVars (vars, _) = vars
+
+
 printMem :: Memory -> IO ()
-printMem (((vars, funs)):lm, isRunning) = print (printMemVars vars)
+printMem (stack, _) = print (printMemVars (currentVars stack))
 
 printMemVars :: Variables -> String
 printMemVars  [] = []
@@ -250,7 +269,7 @@ subProgram = do
                 f <- subProgramBody
                 updateState(popMemStack)
                 g <- getState
-                updateState(symtable_insert_subprogram (b, d, f))
+                updateState(symtable_insert_subprogram b d f)
                 return ([a] ++ [b] ++ [c] ++ d ++ [e] ++ f)
 
 
@@ -265,7 +284,7 @@ typeAndId = do
                 a <- typeVar
                 b <- idToken
                 c <- getState
-                updateState(symtable_insert_var (b, get_default_value a))
+                updateState(symtable_insert_var b (get_default_value a))
                 return ([a] ++ [b])
 
 remainingParameters :: ParsecT [Token] Memory IO ([Token])
@@ -337,7 +356,6 @@ expression :: ParsecT [Token] Memory IO (Token)
 expression = try binOp <|> 
                 intToken <|> 
                 varId 
-
                 -- <|> 
                 -- subProgramCall
 
@@ -366,28 +384,28 @@ varId = do
 
                   
 
--- subProgramCall :: ParsecT [Token] [(Token,Token)] IO ([Token])
--- subProgramCall = do 
---                   a <- idToken
---                   b <- openParToken
---                   c <- argumentList
---                   d <- closeParToken
---                   e <- semiColonToken
---                   return ([a] ++ [b] ++ c ++ [d] ++ [e])
+subProgramCall :: ParsecT [Token] [(Token,Token)] IO ([Token])
+subProgramCall = do 
+                  a <- idToken
+                  b <- openParToken
+                  c <- argumentList
+                  d <- closeParToken
+                  e <- semiColonToken
+                  -- updateState(evalFunCall idToken)
+                  return ([a] ++ [b] ++ c ++ [d] ++ [e])
 
 
--- argumentList :: ParsecT [Token] [(Token,Token)] IO ([Token])
--- argumentList = do  
---                   a <- idToken
---                   b <- remainingArguments
---                   return ([a] ++ b)
+argumentList :: ParsecT [Token] [(Token,Token)] IO ([Token])
+argumentList = do  
+                  a <- idToken
+                  b <- remainingArguments
+                  return ([a] ++ b)
 
-
--- remainingArguments :: ParsecT [Token] [(Token,Token)] IO ([Token])
--- remainingArguments = (do  
---                   a <- commaToken
---                   b <- argumentList
---                   return ([a] ++ b)) <|> (return [])
+remainingArguments :: ParsecT [Token] [(Token,Token)] IO ([Token])
+remainingArguments = (do  
+                  a <- commaToken
+                  b <- argumentList
+                  return ([a] ++ b)) <|> (return [])
 
 
 
@@ -412,9 +430,7 @@ evalOp (Int x p) (Div _) (Int y _) = Int (x `div` y) p
 
 
 evalVar :: Token -> Memory-> Token
-evalVar _ ([], _) = error "variable not found"
-evalVar _ (([], f):lm, _) = error "variable not found"
-evalVar t ((vars, f):lm, _) = evalVarAux t vars
+evalVar t (stack, _) = evalVarAux t (currentVars stack)
                               
 
 -- TODO: Por que fail não é aceito pelo compilador nessa função?
@@ -424,29 +440,36 @@ evalVarAux (Id x p) ((name, Numeric v):lv) =
                                     if x == name then Int v p
                                     else evalVarAux (Id x p) lv
 
+-- evalFunCall :: Token -> Memory -> Memory
+-- evalFunCall (Id funName _) ((_, funs):_, _) =  
+
+
+
 get_default_value :: Token -> Token
 get_default_value (Num "num" p) = Int 0 p
 
 
-symtable_insert_var :: (Token, Token) -> Memory -> Memory
-symtable_insert_var (Id name _, varType) ([], ir) = ((addVarToMemory name varType [], []):[], ir)
-symtable_insert_var (Id name _, varType) ((vars, funs):lm, ir) = ((addVarToMemory name varType vars, funs):lm, ir)
+symtable_insert_var :: Token -> Token -> Memory -> Memory
+symtable_insert_var (Id name _) varType ([], ir) = ((updatedVars, []):[], ir)
+                                                    where updatedVars = addVarToMemory name varType []
+symtable_insert_var (Id name _) varType (s:ls, ir) = ((updatedVars, (getFunctions s)):ls, ir)
+                                                    where updatedVars = addVarToMemory name varType (getVars s)
 
 addVarToMemory :: String -> Token -> Variables -> Variables
 addVarToMemory name (Int val _) vars = (name, Numeric val):vars
 
-symtable_insert_subprogram :: (Token, [Token], [Token]) -> Memory -> Memory
-symtable_insert_subprogram (Id name _, parametersList, body) ([], ir)  = (([], addSubprogramToMemory name parametersList body []):[], ir)
-symtable_insert_subprogram (Id name _, parametersList, body)  ((vars, funs):lm, ir) = ((vars, addSubprogramToMemory name parametersList body funs):lm, ir)
+symtable_insert_subprogram :: Token -> [Token] -> [Token] -> Memory -> Memory
+symtable_insert_subprogram (Id name _) parametersList body ([], ir) = (([], updatedFunctions):[], ir)
+                                                                        where updatedFunctions = addSubprogramToMemory name parametersList body []
+symtable_insert_subprogram (Id name _) parametersList body (s:ls, ir) = ((getVars s, updatedFunctions):ls, ir)
+                                                                        where updatedFunctions = addSubprogramToMemory name parametersList body (getFunctions s)
 
 addSubprogramToMemory :: String -> [Token] -> [Token] -> Functions -> Functions
 addSubprogramToMemory name parametersList body funs = (name, parametersList, body):funs
 
 -- TODO: Por que fail não é aceito pelo compilador nessa função após o isRunning ser adicionado a memória?
 symtableUpdate :: (Token, Token) -> Memory -> Memory
-symtableUpdate _ ([], _) = error "variable not found"
-symtableUpdate _ (([], _):lm, _) = error "variable not found"
-symtableUpdate idVal ((vars, lf):lm, ir) = ((symtableUpdateAux idVal vars, lf):lm, ir)
+symtableUpdate idVal (s:ls, ir) = ((symtableUpdateAux idVal (getVars s), getFunctions s):ls, ir)
 
 symtableUpdateAux :: (Token, Token) -> Variables -> Variables
 symtableUpdateAux _ [] = fail "variable not found"
