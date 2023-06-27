@@ -22,7 +22,6 @@ tokens :-
   write                                 { \p s -> Write (getLC p)}
   >                                     { \p s -> Greater (getLC p)}
   $digit+                               { \p s -> Int (read s)  (getLC p)}
-  \" $alpha [$alpha $digit ! \_ \']* \" { \p s -> String s (getLC p)}
   "("                                   { \p s -> OpenPar  (getLC p)}  
   ")"                                   { \p s -> ClosePar (getLC p)}
   Float                                 { \p s -> Float s (getLC p)}
@@ -37,12 +36,16 @@ tokens :-
   num                                   { \p s -> Num s (getLC p)}
   tempTemp                              { \p s -> NumWithSpecification (getLC p)}
   ","                                   { \p s -> Comma (getLC p)}
-  $alpha [$alpha $digit \_ \']*         { \p s -> Id s  (getLC p)}
   "+"                                   { \p s -> Add (getLC p)}
   "*"                                   { \p s -> Mult (getLC p)}
   "-"                                   { \p s -> Sub (getLC p)}
   "^"                                   { \p s -> Pow (getLC p)}
   "/"                                   { \p s -> Div (getLC p)}
+  print                                 { \p s -> Print (getLC p)}
+  \" $alpha [$alpha $digit ! \_ \']* \" { \p s -> String s (getLC p)}
+  $alpha [$alpha $digit \_ \']*         { \p s -> Id s  (getLC p)}
+  '"'                                   { \p s -> Quote (getLC p)}
+
 
 {
 -- Each action has type :: AlexPosn -> String -> Token
@@ -77,7 +80,9 @@ data Token =
   Sub                  (Int, Int) |
   Mult                 (Int, Int) |
   Pow                  (Int, Int) |
-  Div                  (Int, Int) 
+  Div                  (Int, Int) |
+  Print                (Int, Int) |
+  Quote                (Int, Int)
   deriving (Eq,Show)   
 
 getLC (AlexPn _ l c) = (l, c) 

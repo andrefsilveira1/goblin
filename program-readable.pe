@@ -3,6 +3,7 @@ vars:
 	num x;
 	num y;
 	num z;
+	num c;
 	num mult;
 	num problema;
 
@@ -27,8 +28,8 @@ process:
 	mult = 5 * 2;
 	mult = mult - 2;
 	mult = mult ^ 2;
-	problema = x ^ 2;
-	problema = problema / 9;
+	problema = 1 + 3 * 2;
 	// sum(x, y);
+	print("Problema", problema);
 
 

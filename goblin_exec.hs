@@ -58,6 +58,10 @@ pushMemStack (stack:sl, ir) = ([stack, stack] ++ sl, ir)
 popMemStack :: Memory -> Memory
 popMemStack (stack:sl, ir) = (sl, ir)
 
+printVars :: Token -> Token -> IO ()
+printVars str tok = putStrLn (show str ++ " " ++ show tok ++ "\n")
+
+
 -- parsers para os tokens
 
 
@@ -146,7 +150,9 @@ divToken = tokenPrim show update_pos get_token where
   get_token (Div p) = Just (Div p)
   get_token _   = Nothing
 
-
+printToken = tokenPrim show update_pos get_token where
+  get_token (Print p) = Just (Print p)
+  get_token _    = Nothing
 
 
 
@@ -241,7 +247,18 @@ numType =
           (numToken) <|> (numWithSpecificationToken)
 
 
+-- ------------------------------Print---------------------------
 
+printVar :: ParsecT [Token] Memory IO ([Token])
+printVar = do 
+                a <- printToken
+                b <- openParToken
+                string <- stringToken
+                comma <- commaToken
+                c <- expression
+                g <- closeParToken
+                liftIO (printVars string c)
+                return ([a] ++ [b]++ [string] ++  [comma] ++ [c] ++ [g])
 
 
 
@@ -342,7 +359,7 @@ stmts = do
 
 stmt :: ParsecT [Token] Memory IO ([Token])
 stmt = do
-          a <- assign
+          a <- (assign <|> printVar)
           b <- semiColonToken
           return (a ++ [b])
 
@@ -362,25 +379,40 @@ assign = do
           return ([a] ++ [b] ++ [c])
 
 expression :: ParsecT [Token] Memory IO (Token)
-expression = try binOp <|> 
-                intToken <|> 
-                varId 
-                -- <|> 
-                -- subProgramCall
+expression = try binOp <|> unaryExpression
+                --  binOp <|> 
+                -- intToken <|> 
+                -- varId 
 
-binOp :: ParsecT [Token] Memory IO (Token)
-binOp = do 
-          a <- operand
-          b <- op
-          c <- expression
-          return (evalOp a b c)
+
+unaryExpression :: ParsecT [Token] Memory IO (Token)
+unaryExpression = do 
+                    a <- op
+                    b <- intToken
+                    return (b)
+
+--- funções considerando associatividade à esquerda 
+binOp :: ParsecT [Token] Memory IO Token
+binOp = do
+  a <- operand
+  d <- evalueRemaining (a)
+  return (d)
+
+
+evalueRemaining :: Token -> ParsecT [Token] Memory IO Token
+evalueRemaining numb = do
+                      a <- op
+                      b <- operand
+                      d <- evalueRemaining (evalOp numb a b)
+                      return (d)
+                    <|> return (numb)
 
 
 operand :: ParsecT [Token] Memory IO (Token)
 operand = varId <|> intToken
 
 op :: ParsecT [Token] Memory IO (Token)
-op = addToken <|> multToken <|> subToken <|> powToken <|> divToken
+op = powToken <|> multToken <|> divToken <|> addToken <|> subToken
 
 varId :: ParsecT [Token] Memory IO (Token)
 varId = do 
