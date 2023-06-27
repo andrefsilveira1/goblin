@@ -15,7 +15,13 @@ import System.Environment
 data Type = Numeric Int
 type Variable = (String, Type) -- nome e tipo
 type Variables = [Variable] -- nome e tipo
-type Function = (String, [Token], [Token]) -- nome e corpo (TODO: descrever protocolo tbm)
+
+type FunName = String
+type FunParams = [Token]
+type FunArguments = [Token]
+type FunTokens = [Token]
+type Function = (FunName, FunParams, FunArguments, FunTokens)
+
 type Functions = [Function] 
 type Stack = [(Variables, Functions)]
 
@@ -190,8 +196,8 @@ program = do
 beginExecution :: Memory -> Memory
 beginExecution (stack, _) = (stack, True)
 
-isExecuting :: Memory -> Bool
-isExecuting (stack, ie) = ie
+isRunning :: Memory -> Bool
+isRunning (stack, ie) = ie
 
 
 
@@ -266,11 +272,14 @@ subProgram = do
                 c <- openParToken
                 d <- parametersList
                 e <- closeParToken
+                s <- getState
+                -- when (isRunning s) ()
                 f <- subProgramBody
                 updateState(popMemStack)
-                g <- getState
-                updateState(symtable_insert_subprogram b d f)
-                return ([a] ++ [b] ++ [c] ++ d ++ [e] ++ f)
+                s <- getState
+                let allTokens = [a] ++ [b] ++ [c] ++ d ++ [e] ++ f
+                when (isRunning s) (updateState(symtable_insert_subprogram b d allTokens))
+                return (allTokens)
 
 
 parametersList :: ParsecT [Token] Memory IO ([Token])
@@ -347,7 +356,7 @@ assign = do
           b <- equalsToken
           c <- expression
           d <- getState
-          when (isExecuting d) (updateState(symtableUpdate (a, c)))
+          when (isRunning d) (updateState(symtableUpdate (a, c)))
           e <- getState
           liftIO (printMem e)
           return ([a] ++ [b] ++ [c])
@@ -391,7 +400,7 @@ subProgramCall = do
                   c <- argumentList
                   d <- closeParToken
                   e <- semiColonToken
-                  -- updateState(evalFunCall idToken)
+                  -- updateState(addArgumentsToFunction idToken c)
                   return ([a] ++ [b] ++ c ++ [d] ++ [e])
 
 
@@ -441,7 +450,20 @@ evalVarAux (Id x p) ((name, Numeric v):lv) =
                                     else evalVarAux (Id x p) lv
 
 -- evalFunCall :: Token -> Memory -> Memory
--- evalFunCall (Id funName _) ((_, funs):_, _) =  
+-- evalFunCall (Id funName _) ((_, funs):_, _) = do 
+--                                                 a <- getInput
+--                                                 b <- getState
+--                                                 c <- subProgram b "Error message" funTokens 
+--                                                   where funTokens = findFunTokens funName funs
+--                                                 d <- 
+
+-- TODO: Exibir erro caso não encontre função
+-- findFun :: String -> Functions -> Function
+-- findFun name ((n, params, arguments, funTokens):lf) = if name == n then (n, params, arguments, funTokens)
+--                                           else findFunTokens name lf
+
+-- addArgumentsToFunction :: String -> [Token] -> Memory -> Memory
+
 
 
 
@@ -459,13 +481,13 @@ addVarToMemory :: String -> Token -> Variables -> Variables
 addVarToMemory name (Int val _) vars = (name, Numeric val):vars
 
 symtable_insert_subprogram :: Token -> [Token] -> [Token] -> Memory -> Memory
-symtable_insert_subprogram (Id name _) parametersList body ([], ir) = (([], updatedFunctions):[], ir)
-                                                                        where updatedFunctions = addSubprogramToMemory name parametersList body []
-symtable_insert_subprogram (Id name _) parametersList body (s:ls, ir) = ((getVars s, updatedFunctions):ls, ir)
-                                                                        where updatedFunctions = addSubprogramToMemory name parametersList body (getFunctions s)
+symtable_insert_subprogram (Id name _) parametersList allTokens ([], ir) = (([], updatedFunctions):[], ir)
+                                                                        where updatedFunctions = addSubprogramToMemory name parametersList allTokens []
+symtable_insert_subprogram (Id name _) parametersList allTokens (s:ls, ir) = ((getVars s, updatedFunctions):ls, ir)
+                                                                        where updatedFunctions = addSubprogramToMemory name parametersList allTokens (getFunctions s)
 
 addSubprogramToMemory :: String -> [Token] -> [Token] -> Functions -> Functions
-addSubprogramToMemory name parametersList body funs = (name, parametersList, body):funs
+addSubprogramToMemory name parametersList body funs = (name, parametersList, [], body):funs
 
 -- TODO: Por que fail não é aceito pelo compilador nessa função após o isRunning ser adicionado a memória?
 symtableUpdate :: (Token, Token) -> Memory -> Memory
