@@ -18,15 +18,16 @@ type Variables = [Variable] -- nome e tipo
 
 type FunName = String
 type FunParams = [Token]
-type FunArguments = [Token]
-type FunTokens = [Token]
-type Function = (FunName, FunParams, FunArguments, FunTokens)
+type FunBody = [Token]
+
+--TODO Refatorar estrutura de Function no código (arguments foram removidos)
+type Function = (FunName, FunParams, FunBody)
 
 type Functions = [Function] 
 type Stack = [(Variables, Functions)]
 
 -- Nossa memória que será o user state no parsec
-type Memory = (Stack, Bool) -- stack de variáveis e funções e flag indicativa de execução 
+type Memory = (Stack, Bool) -- stack de variáveis e funções e flag indicativa de execução
 
 
 currentFunctions :: Stack -> Functions
@@ -362,9 +363,9 @@ assign = do
           return ([a] ++ [b] ++ [c])
 
 expression :: ParsecT [Token] Memory IO (Token)
-expression = try binOp <|> 
+expression = try binOp <|>
                 intToken <|> 
-                varId 
+                varId
                 -- <|> 
                 -- subProgramCall
 
@@ -400,8 +401,11 @@ subProgramCall = do
                   c <- argumentList
                   d <- closeParToken
                   e <- semiColonToken
-                  -- updateState(addArgumentsToFunction idToken c)
-                  return ([a] ++ [b] ++ c ++ [d] ++ [e])
+                  updateState(pushMemStack)
+                  updateState(addParametersToMemory idToken c)
+                  f <- evalFun idToken
+                  updateState(popMemStack)
+                  return (f)
 
 
 argumentList :: ParsecT [Token] [(Token,Token)] IO ([Token])
@@ -458,12 +462,16 @@ evalVarAux (Id x p) ((name, Numeric v):lv) =
 --                                                 d <- 
 
 -- TODO: Exibir erro caso não encontre função
--- findFun :: String -> Functions -> Function
--- findFun name ((n, params, arguments, funTokens):lf) = if name == n then (n, params, arguments, funTokens)
---                                           else findFunTokens name lf
+findFun :: String -> Functions -> Function
+findFun name ((n, params, arguments, funTokens):lf) = if name == n then (n, params, arguments, funTokens)
+                                           else findFunTokens name lf
 
--- addArgumentsToFunction :: String -> [Token] -> Memory -> Memory
+addParametersToMemory :: String -> [Token] -> Memory -> Memory
+addParametersToMemory name args ((vars, funs):lm , ir) = addParametersToMemoryAux args params ((vars, funs):lm , ir)
+                                                        where (_, params, _) = findFun name funs
 
+addParametersToMemoryAux :: [Token] -> [Token] -> Memory -> Memory
+addParametersToMemoryAux ((Id argName _):args) ((Id paramName _):params) =
 
 
 
