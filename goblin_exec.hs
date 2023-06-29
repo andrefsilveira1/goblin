@@ -12,7 +12,7 @@ import System.Environment
 
 
 
-data Type = Numeric Int
+data Type = Numeric Int -- | NumericWithSpec ((Int, []), (Int, []))
 type Variable = (String, Type) -- nome e tipo
 type Variables = [Variable] -- nome e tipo
 
@@ -47,11 +47,16 @@ getVarsFromStackCell (vars, _) = vars
 
 
 printMem :: Memory -> IO ()
-printMem (stack, _) = print (printMemVars (getTopVars stack))
+printMem (stack, _) = print (printMemVars (getTopVars stack) ++ "FUNS: " ++ printMemFuns (getTopFuns stack))
 
 printMemVars :: Variables -> String
 printMemVars  [] = []
 printMemVars ((name, Numeric val):lv) = name ++ " " ++ show val ++ ", " ++ printMemVars lv
+
+
+printMemFuns :: Functions -> String
+printMemFuns  [] = []
+printMemFuns ((name, _, _):lf) = name ++ ", "  ++ printMemFuns lf
 
 pushMemStack :: Memory -> Memory
 pushMemStack (stack:sl, ir) = ([stack, stack] ++ sl, ir)
