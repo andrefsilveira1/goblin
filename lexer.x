@@ -12,7 +12,6 @@ $alpha = [a-zA-Z] -- alphabetic characters
 
 tokens :-
 
-  $white+                               ;
   "//".*                                ;
   :                                     { \p s -> Colon (getLC p)}
   ";"                                   { \p s -> SemiColon (getLC p)}
@@ -42,9 +41,10 @@ tokens :-
   "^"                                   { \p s -> Pow (getLC p)}
   "/"                                   { \p s -> Div (getLC p)}
   print                                 { \p s -> Print (getLC p)}
-  \" $alpha [$alpha $digit ! \_ \']* \" { \p s -> String s (getLC p)}
+  \" .* \"                              { \p s -> StringLit s (getLC p)}
   $alpha [$alpha $digit \_ \']*         { \p s -> Id s  (getLC p)}
   '"'                                   { \p s -> Quote (getLC p)}
+  $white+                               ;
 
 
 {
@@ -61,7 +61,7 @@ data Token =
   Greater              (Int, Int) |
   Id       String      (Int, Int) |
   Int      Int         (Int, Int) |
-  String   String      (Int, Int) |
+  StringLit   String      (Int, Int) |
   OpenPar              (Int, Int) |
   ClosePar             (Int, Int) |
   Float    String      (Int, Int) |
