@@ -58,8 +58,15 @@ pushMemStack (stack:sl, ir) = ([stack, stack] ++ sl, ir)
 popMemStack :: Memory -> Memory
 popMemStack (stack:sl, ir) = (sl, ir)
 
+
+auxPrint :: Token -> String
+auxPrint (Int valor _) = show valor
+auxPrint (StringLit valor _) = init(tail(valor))
+
 printVars :: Token -> Token -> IO ()
-printVars str tok = putStrLn (show str ++ " " ++ show tok ++ "\n")
+printVars str tok = putStrLn (auxPrint (str) ++ auxPrint(tok))
+-- ++ " " ++ show tok ++ "\n"
+
 
 
 -- parsers para os tokens
@@ -171,9 +178,9 @@ booleanToken = tokenPrim show update_pos get_token where
   get_token (Boolean x p)  = Just (Boolean x p)
   get_token _            = Nothing
 
-stringToken :: ParsecT [Token] st IO (Token)
-stringToken = tokenPrim show update_pos get_token where 
-  get_token (String x p)   = Just (String x p)
+stringLitToken :: ParsecT [Token] st IO (Token)
+stringLitToken = tokenPrim show update_pos get_token where 
+  get_token (StringLit x p)   = Just (StringLit x p)
   get_token _            = Nothing
 
 charToken :: ParsecT [Token] st IO (Token)
@@ -253,7 +260,7 @@ printVar :: ParsecT [Token] Memory IO ([Token])
 printVar = do 
                 a <- printToken
                 b <- openParToken
-                string <- stringToken
+                string <- stringLitToken
                 comma <- commaToken
                 c <- expression
                 g <- closeParToken
