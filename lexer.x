@@ -20,6 +20,7 @@ tokens :-
   then                                  { \p s -> Then (getLC p)}
   write                                 { \p s -> Write (getLC p)}
   >                                     { \p s -> Greater (getLC p)}
+  "<"                                   { \p s -> Less (getLC p)}
   $digit+                               { \p s -> Int (read s)  (getLC p)}
   "("                                   { \p s -> OpenPar  (getLC p)}  
   ")"                                   { \p s -> ClosePar (getLC p)}
@@ -59,9 +60,10 @@ data Token =
   Then                 (Int, Int) |
   Write                (Int, Int) |
   Greater              (Int, Int) |
+  Less                 (Int, Int) |
   Id       String      (Int, Int) |
   Int      Int         (Int, Int) |
-  StringLit   String      (Int, Int) |
+  StringLit   String   (Int, Int) |
   OpenPar              (Int, Int) |
   ClosePar             (Int, Int) |
   Float    String      (Int, Int) |

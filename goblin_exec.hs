@@ -161,6 +161,17 @@ printToken = tokenPrim show update_pos get_token where
   get_token (Print p) = Just (Print p)
   get_token _    = Nothing
 
+ifToken = tokenPrim show update_pos get_token where
+  get_token (If p) = Just (If p)
+  get_token _    = Nothing
+
+lessToken = tokenPrim show update_pos get_token where
+  get_token (Less p) = Just (Less p)
+  get_token _    = Nothing
+
+greaterToken = tokenPrim show update_pos get_token where
+  get_token (Greater p) = Just (Greater p)
+  get_token _    = Nothing
 
 
 
@@ -268,6 +279,18 @@ printVar = do
                 return ([a] ++ [b]++ [string] ++  [comma] ++ [c] ++ [g])
 
 
+-- ------------------------------Salto condicional---------------------------
+
+ifBlock :: ParsecT [Token] Memory IO ([Token])
+ifBlock = do
+            a <- ifToken
+            b <- openParToken
+            c <- expression
+            d <- closeParToken
+            e <- openCurlyBracketsToken
+            f <- stmts
+            g <- closeCurlyBracketsToken
+            return ([a] ++ [b] ++ [c] ++ [d] ++ [e] ++ f ++ [g])
 
 
 
@@ -366,7 +389,7 @@ stmts = do
 
 stmt :: ParsecT [Token] Memory IO ([Token])
 stmt = do
-          a <- (assign <|> printVar)
+          a <- ( assign <|> printVar <|> ifBlock)
           b <- semiColonToken
           return (a ++ [b])
 
@@ -419,7 +442,7 @@ operand :: ParsecT [Token] Memory IO (Token)
 operand = varId <|> intToken
 
 op :: ParsecT [Token] Memory IO (Token)
-op = powToken <|> multToken <|> divToken <|> addToken <|> subToken
+op = powToken <|> multToken <|> divToken <|> addToken <|> subToken <|> lessToken <|> greaterToken
 
 varId :: ParsecT [Token] Memory IO (Token)
 varId = do 
@@ -471,6 +494,8 @@ evalOp (Int x p) (Sub _) (Int y _) = Int (x - y) p
 evalOp (Int x p) (Mult _) (Int y _) = Int (x * y) p
 evalOp (Int x p) (Pow _) (Int y _) = Int (x ^ y) p
 evalOp (Int x p) (Div _) (Int y _) = Int (x `div` y) p
+evalOp (Int x p) (Greater _) (Int y _) = Boolean (show (x > y) )p
+evalOp (Int x p) (Less _) (Int y _) = Boolean (show (x < y)) p
 
 -- [(x, 10), (y, 15)]
 -- [([ (x, Numeric 10), (y, Numeric 15) ], [_])]
