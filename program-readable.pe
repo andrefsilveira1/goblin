@@ -29,6 +29,6 @@ process:
 	mult = mult ^ 2;
 	problema = x ^ 2;
 	problema = problema / 9;
-	// sum(x, y);
+	problema = sum(x, y);
 
 

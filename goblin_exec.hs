@@ -355,46 +355,51 @@ assign :: ParsecT [Token] Memory IO ([Token])
 assign = do
           a <- idToken
           b <- equalsToken
-          c <- expression
+          (expT, expVal) <- expression
           d <- getState
-          when (isRunning d) (updateState(symtableUpdate a c))
+          when (isRunning d) (updateState(symtableUpdate a expVal))
           e <- getState
           liftIO (printMem e)
-          return ([a] ++ [b] ++ [c])
+          return ([a] ++ [b] ++ expT)
 
-expression :: ParsecT [Token] Memory IO (Token)
+expression :: ParsecT [Token] Memory IO ([Token], Type)
 expression = try binOp <|>
-                intToken <|> 
+                intLit <|>
+                try subProgramCall <|>
                 varId
-                -- <|> 
-                -- subProgramCall
 
-binOp :: ParsecT [Token] Memory IO (Token)
+
+binOp :: ParsecT [Token] Memory IO ([Token], Type)
 binOp = do 
-          a <- operand
+          (operandT, operandV) <- operand
           b <- op
-          c <- expression
-          return (evalOp a b c)
+          (expT, expV) <- expression
+          return (operandT ++ [b] ++ expT,  evalOp operandV b expV)
 
 
-operand :: ParsecT [Token] Memory IO (Token)
-operand = varId <|> intToken
+operand :: ParsecT [Token] Memory IO ([Token], Type)
+operand = varId <|> intLit
+
+intLit :: ParsecT [Token] Memory IO ([Token], Type)
+intLit = do
+            (Int v p) <- intToken
+            return ([(Int v p)], Numeric v)
 
 op :: ParsecT [Token] Memory IO (Token)
 op = addToken <|> multToken <|> subToken <|> powToken <|> divToken
 
-varId :: ParsecT [Token] Memory IO (Token)
+varId :: ParsecT [Token] Memory IO ([Token], Type)
 varId = do 
             a <- idToken
             s <- getState
-            return (evalVar a s)
+            return ([a], evalVar a s)
 
 
 
 
                   
 
-subProgramCall :: ParsecT [Token] Memory IO (Type)
+subProgramCall :: ParsecT [Token] Memory IO ([Token], Type)
 subProgramCall = do 
                   a <- idToken
                   b <- openParToken
@@ -405,7 +410,7 @@ subProgramCall = do
                   updateState(addParametersToMemory a c)
                   let val = evalFunCall a
                   updateState(popMemStack)
-                  return (val)
+                  return ([a] ++ [b] ++ c ++ [d] ++ [e], val)
 
 
 argumentList :: ParsecT [Token] Memory IO ([Token])
@@ -430,27 +435,27 @@ remainingArguments = (do
 
 -- funções para a tabela de símbolos
 
-evalOp :: Token -> Token -> Token -> Token
-evalOp (Int x p) (Add _) (Int y _) = Int (x + y) p
-evalOp (Int x p) (Sub _) (Int y _) = Int (x - y) p
-evalOp (Int x p) (Mult _) (Int y _) = Int (x * y) p
-evalOp (Int x p) (Pow _) (Int y _) = Int (x ^ y) p
-evalOp (Int x p) (Div _) (Int y _) = Int (x `div` y) p
+evalOp :: Type -> Token -> Type -> Type
+evalOp (Numeric x) (Add _) (Numeric y) = Numeric (x + y)
+evalOp (Numeric x) (Sub _) (Numeric y) = Numeric (x - y)
+evalOp (Numeric x) (Mult _) (Numeric y) = Numeric (x * y)
+evalOp (Numeric x) (Pow _) (Numeric y) = Numeric (x ^ y)
+evalOp (Numeric x) (Div _) (Numeric y) = Numeric (x `div` y)
 
 -- [(x, 10), (y, 15)]
 -- [([ (x, Numeric 10), (y, Numeric 15) ], [_])]
 -- Formato antigo: [(Token, Token)]
 
 
-evalVar :: Token -> Memory-> Token
+evalVar :: Token -> Memory -> Type
 evalVar t (stack, _) = evalVarAux t (getTopVars stack)
                               
 
 -- TODO: Por que fail não é aceito pelo compilador nessa função?
-evalVarAux :: Token -> Variables -> Token
+evalVarAux :: Token -> Variables -> Type
 evalVarAux (Id x (l, c)) [] = error ("variable " ++ x ++ " not in scope at line " ++ show l ++ ", column " ++ show c)
 evalVarAux (Id x p) ((name, Numeric v):lv) = 
-                                    if x == name then Int v p
+                                    if x == name then Numeric v
                                     else evalVarAux (Id x p) lv
 
 --evalFunCall :: Token -> Memory -> Memory
@@ -523,14 +528,14 @@ addSubprogramToMemory name parametersList body funs = (name, parametersList, bod
 
 -- TODO: Por que fail não é aceito pelo compilador nessa função após o isRunning ser adicionado a memória?
 -- Recebe um idToken, um typeToken, a memória e retorna a memória atualizada
-symtableUpdate :: Token -> Token -> Memory -> Memory
+symtableUpdate :: Token -> Type -> Memory -> Memory
 symtableUpdate idT val (s:ls, ir) = ((symtableUpdateAux idT val (getVarsFromStackCell s), getFunsFromStackCell s):ls, ir)
 
-symtableUpdateAux :: Token -> Token -> Variables -> Variables
+symtableUpdateAux :: Token -> Type -> Variables -> Variables
 symtableUpdateAux _ _ [] = fail "variable not found"
-symtableUpdateAux (Id id1 p) (Int v1 p2) ((name, Numeric v):lv) =
-                               if id1 == name then (id1, Numeric v1):lv
-                               else (name, Numeric v) : symtableUpdateAux (Id id1 p)  (Int v1 p2) lv
+symtableUpdateAux (Id id1 p) val ((name, Numeric v):lv) =
+                               if id1 == name then (id1, val):lv
+                               else (name, Numeric v) : symtableUpdateAux (Id id1 p) val lv
 
 
 -- symtable_remove :: (Token,Token) -> Memory -> Memory
