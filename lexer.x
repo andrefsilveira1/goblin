@@ -36,6 +36,7 @@ tokens :-
   =                                     { \p s -> Equals (getLC p)}
   num                                   { \p s -> Num s (getLC p)}
   tempTemp                              { \p s -> NumWithSpecification (getLC p)}
+  return                                { \p s -> Return (getLC p)}
   ","                                   { \p s -> Comma (getLC p)}
   $alpha [$alpha $digit \_ \']*         { \p s -> Id s  (getLC p)}
   "+"                                   { \p s -> Add (getLC p)}
@@ -77,7 +78,8 @@ data Token =
   Sub                  (Int, Int) |
   Mult                 (Int, Int) |
   Pow                  (Int, Int) |
-  Div                  (Int, Int) 
+  Div                  (Int, Int) |
+  Return               (Int, Int)
   deriving (Eq,Show)   
 
 getLC (AlexPn _ l c) = (l, c) 

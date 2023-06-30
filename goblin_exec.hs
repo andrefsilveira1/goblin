@@ -152,6 +152,9 @@ divToken = tokenPrim show update_pos get_token where
   get_token (Div p) = Just (Div p)
   get_token _   = Nothing
 
+returnToken = tokenPrim show update_pos get_token where
+  get_token (Return p) = Just (Return p)
+  get_token _   = Nothing
 
 
 
@@ -284,7 +287,7 @@ subProgram = do
                 updateState(popMemStack)
                 s <- getState
                 let allTokens = [a] ++ [b] ++ [c] ++ d ++ [e] ++ f
-                when (isRunning s) (updateState(symtable_insert_subprogram b d allTokens))
+                when (not (isRunning s)) (updateState(symtable_insert_subprogram b d allTokens))
                 return (allTokens)
 
 
@@ -314,13 +317,15 @@ remainingSubPrograms =
                       (subProgram) <|> (return [])
 
 
-subProgramBody :: ParsecT [Token] Memory IO ([Token])
+subProgramBody :: ParsecT [Token] Memory IO ([Token], Type)
 subProgramBody = do 
                     a <- openCurlyBracketsToken
                     b <- varsBlock
                     c <- processBlock
-                    d <- closeCurlyBracketsToken
-                    return ([a] ++ b ++ c ++ [d])
+                    d <- returnToken
+                    (expT, expVal) <- expression
+                    f <- closeCurlyBracketsToken
+                    return ([a] ++ b ++ c ++ [d] ++ expT, expVal)
 
 
 
@@ -480,7 +485,7 @@ findFun name ((n, params, body):lf) = if name == n then (n, params, body)
 
 addParametersToMemory :: Token -> [Token] -> Memory -> Memory
 addParametersToMemory (Id name _) args ((vars, funs):lm , ir) = addParametersToMemoryAux args params ((vars, funs):lm , ir)
-                                                        where (_, params, _) = findFun name funs
+    where (_, params, _) = findFun name funs
 
 addParametersToMemoryAux :: [Token] -> [Token] -> Memory -> Memory
 addParametersToMemoryAux ((Id name _):args) ((Id paramName pp):params) mem =
@@ -491,6 +496,7 @@ addParametersToMemoryAux ((Id name _):args) ((Id paramName pp):params) mem =
 
 -- In case of a collon or parentesis in the paramList
 addParametersToMemoryAux args (_:params) mem = addParametersToMemoryAux args params mem
+addParametersToMemoryAux (_:args) params mem = addParametersToMemoryAux args params mem
 addParametersToMemoryAux [] [] mem = mem
 
 
@@ -524,9 +530,9 @@ addVarToMemory name varType vars = (name, varType):vars
 
 symtable_insert_subprogram :: Token -> [Token] -> [Token] -> Memory -> Memory
 symtable_insert_subprogram (Id name _) parametersList allTokens ([], ir) = (([], updatedFunctions):[], ir)
-                                                                        where updatedFunctions = addSubprogramToMemory name parametersList allTokens []
+    where updatedFunctions = addSubprogramToMemory name parametersList allTokens []
 symtable_insert_subprogram (Id name _) parametersList allTokens (s:ls, ir) = ((getVarsFromStackCell s, updatedFunctions):ls, ir)
-                                                                        where updatedFunctions = addSubprogramToMemory name parametersList allTokens (getFunsFromStackCell s)
+    where updatedFunctions = addSubprogramToMemory name parametersList allTokens (getFunsFromStackCell s)
 
 addSubprogramToMemory :: String -> [Token] -> [Token] -> Functions -> Functions
 addSubprogramToMemory name parametersList body funs = (name, parametersList, body):funs
