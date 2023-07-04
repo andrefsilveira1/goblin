@@ -283,11 +283,11 @@ subProgram = do
                 e <- closeParToken
                 s <- getState
                 -- when (isRunning s) ()
-                f <- subProgramBody
+                (f, _) <- subProgramBody
                 updateState(popMemStack)
                 s <- getState
                 let allTokens = [a] ++ [b] ++ [c] ++ d ++ [e] ++ f
-                when (not (isRunning s)) (updateState(symtable_insert_subprogram b d allTokens))
+                updateState(symtable_insert_subprogram b d allTokens)
                 return (allTokens)
 
 
@@ -324,8 +324,10 @@ subProgramBody = do
                     c <- processBlock
                     d <- returnToken
                     (expT, expVal) <- expression
+                    e <- semiColonToken
+
                     f <- closeCurlyBracketsToken
-                    return ([a] ++ b ++ c ++ [d] ++ expT, expVal)
+                    return ([a] ++ b ++ c ++ [d] ++ expT ++ [e], expVal)
 
 
 
@@ -419,6 +421,8 @@ subProgramCall = do
                   updateState(pushMemStack)
                   updateState(addParametersToMemory a c)
                   let val = evalFunCall a
+                  s <- getState
+                  liftIO (printMem s)
                   updateState(popMemStack)
                   return ([a] ++ [b] ++ c ++ [d] ++ [e], val)
 
@@ -494,9 +498,10 @@ addParametersToMemoryAux ((Id name _):args) ((Id paramName pp):params) mem =
             (_, val) = getVar name mem
             updatedMem = symtable_insert_var (Id paramName pp) val mem
 
--- In case of a collon or parentesis in the paramList
-addParametersToMemoryAux args (_:params) mem = addParametersToMemoryAux args params mem
-addParametersToMemoryAux (_:args) params mem = addParametersToMemoryAux args params mem
+-- In case of a collon or type in the paramList
+addParametersToMemoryAux args ((Comma _):params) mem = addParametersToMemoryAux args params mem
+addParametersToMemoryAux args ((Num _ _):params) mem = addParametersToMemoryAux args params mem
+addParametersToMemoryAux ((Comma _):args) params mem = addParametersToMemoryAux args params mem
 addParametersToMemoryAux [] [] mem = mem
 
 
