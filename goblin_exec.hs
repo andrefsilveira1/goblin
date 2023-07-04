@@ -326,7 +326,7 @@ subProgramBody = do
                     (expT, expVal) <- expression
                     e <- semiColonToken
                     f <- closeCurlyBracketsToken
-                    return ([a] ++ b ++ c ++ [d] ++ expT ++ [e], expVal)
+                    return ([a] ++ b ++ c ++ [d] ++ expT ++ [e] ++ [f], expVal)
 
 
 
@@ -374,11 +374,12 @@ assign = do
           return ([a] ++ [b] ++ expT)
 
 expression :: ParsecT [Token] Memory IO ([Token], Type)
-expression = try binOp <|>
-                intLit <|>
-                try subProgramCall <|>
-                varId
+expression = try binOp <|> atomicExpression
 
+atomicExpression :: ParsecT [Token] Memory IO ([Token], Type)
+atomicExpression = try subProgramCall <|>
+                    (varId <|>
+                    intLit)
 
 binOp :: ParsecT [Token] Memory IO ([Token], Type)
 binOp = do 
