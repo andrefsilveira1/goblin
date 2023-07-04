@@ -32,5 +32,3 @@ process:
 	problema = problema / 9;
 	y = 20;
 	problema = sum(x, y);
-
-

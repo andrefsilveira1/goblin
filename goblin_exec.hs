@@ -287,7 +287,7 @@ subProgram = do
                 updateState(popMemStack)
                 s <- getState
                 let allTokens = [a] ++ [b] ++ [c] ++ d ++ [e] ++ f
-                updateState(symtable_insert_subprogram b d allTokens)
+                updateState(symtable_insert_subprogram b d f)
                 return (allTokens)
 
 
@@ -325,7 +325,6 @@ subProgramBody = do
                     d <- returnToken
                     (expT, expVal) <- expression
                     e <- semiColonToken
-
                     f <- closeCurlyBracketsToken
                     return ([a] ++ b ++ c ++ [d] ++ expT ++ [e], expVal)
 
@@ -413,18 +412,25 @@ varId = do
 
 subProgramCall :: ParsecT [Token] Memory IO ([Token], Type)
 subProgramCall = do 
-                  a <- idToken
+                  (Id funName p) <- idToken
                   b <- openParToken
                   c <- argumentList
                   d <- closeParToken
-                  e <- semiColonToken
                   updateState(pushMemStack)
-                  updateState(addParametersToMemory a c)
-                  let val = evalFunCall a
-                  s <- getState
-                  liftIO (printMem s)
+                  updateState(addParametersToMemory (Id funName p) c)
+
+                  (s, _) <- getState
+                  let (_, _, funBody) = findFun funName (getTopFuns s)
+                  inp <- getInput
+                  setInput funBody
+                  (_, v) <- subProgramBody -- TODO: parsec não volta daqui, começa a reler a expressão
+                  liftIO (print "não chega aqui")
+                  setInput inp
+
                   updateState(popMemStack)
-                  return ([a] ++ [b] ++ c ++ [d] ++ [e], val)
+                  s2 <- getState
+                  liftIO (printMem s2)
+                  return ([(Id funName p)] ++ [b] ++ c ++ [d], v)
 
 
 argumentList :: ParsecT [Token] Memory IO ([Token])
@@ -472,15 +478,16 @@ evalVarAux (Id x p) ((name, Numeric v):lv) =
                                     if x == name then Numeric v
                                     else evalVarAux (Id x p) lv
 
---evalFunCall :: Token -> Memory -> Memory
+--evalFunCall :: Token -> Memory -> ParsecT [Token] Memory IO (Type)
 --evalFunCall (Id funName _) ((_, funs):_, _) = do
 --                                                 a <- getInput
 --                                                 b <- getState
---                                                 c <- subProgram b "Error message" funTokens
---                                                   where funTokens = findFunTokens funName funs
---                                                 d <-
-evalFunCall :: Token -> Type
-evalFunCall _ = Numeric 0
+--                                                 setInput funBody
+--                                                 x <- runParserT subProgramBody b "Error message" funBody
+--                                                 return (v)
+--                                                   where (_, _, funBody) = findFun funName funs
+--evalFunCall :: Token -> Type
+--evalFunCall _ = Numeric 0
 
 -- TODO: Exibir erro caso não encontre função
 findFun :: String -> Functions -> Function
