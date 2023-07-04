@@ -34,6 +34,7 @@ tokens :-
   =                                     { \p s -> Equals (getLC p)}
   num                                   { \p s -> Num s (getLC p)}
   tempTemp                              { \p s -> NumWithSpecification (getLC p)}
+  return                                { \p s -> Return (getLC p)}
   ","                                   { \p s -> Comma (getLC p)}
   "+"                                   { \p s -> Add (getLC p)}
   "*"                                   { \p s -> Mult (getLC p)}
@@ -61,7 +62,7 @@ data Token =
   Greater              (Int, Int) |
   Id       String      (Int, Int) |
   Int      Int         (Int, Int) |
-  StringLit   String      (Int, Int) |
+  StringLit   String   (Int, Int) |
   OpenPar              (Int, Int) |
   ClosePar             (Int, Int) |
   Float    String      (Int, Int) |
@@ -82,7 +83,8 @@ data Token =
   Pow                  (Int, Int) |
   Div                  (Int, Int) |
   Print                (Int, Int) |
-  Quote                (Int, Int)
+  Quote                (Int, Int) |
+  Return               (Int, Int)
   deriving (Eq,Show)   
 
 getLC (AlexPn _ l c) = (l, c) 

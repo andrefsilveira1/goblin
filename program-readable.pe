@@ -16,6 +16,7 @@ subprograms:
 
 		process:
 			result = first + second;
+			return result;
 	} 
 
 
@@ -30,6 +31,7 @@ process:
 	mult = mult ^ 2;
 	problema = 1 + 3 * 2;
 	print("Problema ", problema);
-	// sum(x, y);
-
-
+	problema = x ^ 2;
+	problema = problema / 9;
+	y = 20;
+	problema = sum(x, y);
