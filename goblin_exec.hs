@@ -70,7 +70,7 @@ auxPrint (Numeric value) = show value
 --auxPrint (StringLit value _) = init(tail(value))
 
 printVars :: Token -> Type -> IO ()
-printVars (StringLit value _) tok = putStrLn (value ++ auxPrint(tok))
+printVars (StringLit value _) tok = putStrLn (init(tail(value)) ++ auxPrint(tok))
 -- ++ " " ++ show tok ++ "\n"
 
 
@@ -175,13 +175,13 @@ ifToken = tokenPrim show update_pos get_token where
   get_token (If p) = Just (If p)
   get_token _    = Nothing
 
-elseToken = tokenPrim show update_pos get_token where
-  get_token (Else p) = Just (Else p)
-  get_token _ = Nothing
+-- elseToken = tokenPrim show update_pos get_token where
+--   get_token (Else p) = Just (Else p)
+--   get_token _ = Nothing
 
-elseifToken = tokenPrim show update_pos get_token where
-  get_token (ElseIf p) = Just (ElseIf p)
-  get_token _ = Nothing  
+-- elseifToken = tokenPrim show update_pos get_token where
+--   get_token (ElseIf p) = Just (ElseIf p)
+--   get_token _ = Nothing  
 
 lessToken = tokenPrim show update_pos get_token where
   get_token (Less p) = Just (Less p)
@@ -316,12 +316,12 @@ ifBlock :: ParsecT [Token] Memory IO ([Token])
 ifBlock = (do
             a <- ifToken
             b <- openParToken
-            c <- expression
+            (c, _) <- expression
             d <- closeParToken
             e <- openCurlyBracketsToken
             f <- stmts
             g <- closeCurlyBracketsToken
-            return ([a] ++ [b] ++ [c] ++ [d] ++ [e] ++ f ++ [g])
+            return ([a] ++ [b] ++ c ++ [d] ++ [e] ++ f ++ [g])
             )
 
 -- ifBlockElseif :: ParsecT [Token] Memory IO ([Token])
