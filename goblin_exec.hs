@@ -12,7 +12,7 @@ import System.Environment
 
 
 --type Digit = 0 | 1 | 2...| 9
-data Type = Numeric Int -- | NumericWithSpec ((Int, [Digit]), (Int, [Digit]))
+data Type = Numeric Int | Boolean Bool-- | NumericWithSpec ((Int, [Digit]), (Int, [Digit]))
 type Variable = (String, Type) -- nome e tipo
 type Variables = [Variable] -- nome e tipo
 
@@ -171,6 +171,27 @@ returnToken = tokenPrim show update_pos get_token where
   get_token (Return p) = Just (Return p)
   get_token _   = Nothing
 
+ifToken = tokenPrim show update_pos get_token where
+  get_token (If p) = Just (If p)
+  get_token _    = Nothing
+
+elseToken = tokenPrim show update_pos get_token where
+  get_token (Else p) = Just (Else p)
+  get_token _ = Nothing
+
+elseifToken = tokenPrim show update_pos get_token where
+  get_token (ElseIf p) = Just (ElseIf p)
+  get_token _ = Nothing  
+
+lessToken = tokenPrim show update_pos get_token where
+  get_token (Less p) = Just (Less p)
+  get_token _    = Nothing
+
+greaterToken = tokenPrim show update_pos get_token where
+  get_token (Greater p) = Just (Greater p)
+  get_token _    = Nothing
+
+
 
 
 
@@ -183,10 +204,10 @@ floatToken = tokenPrim show update_pos get_token where
   get_token (Float x p)   = Just (Float x p)
   get_token _           = Nothing
 
-booleanToken :: ParsecT [Token] st IO (Token)
-booleanToken = tokenPrim show update_pos get_token where 
-  get_token (Boolean x p)  = Just (Boolean x p)
-  get_token _            = Nothing
+-- booleanToken :: ParsecT [Token] st IO (Token)
+-- booleanToken = tokenPrim show update_pos get_token where 
+--   get_token (Boolean x p)  = Just (Boolean x p)
+--   get_token _            = Nothing
 
 stringLitToken :: ParsecT [Token] st IO (Token)
 stringLitToken = tokenPrim show update_pos get_token where 
@@ -218,6 +239,9 @@ program = do
 
 beginExecution :: Memory -> Memory
 beginExecution (stack, _) = (stack, True)
+
+endExecution :: Memory -> Memory
+endExecution (stack, _) = (stack, False)
 
 isRunning :: Memory -> Bool
 isRunning (stack, ie) = ie
@@ -277,8 +301,48 @@ printVar = do
                 liftIO (printVars string expVal)
                 return ([a] ++ [b]++ [string] ++  [comma] ++ expT ++ [g])
 
+-- ------------------------------Salto condicional---------------------------
+
+-- ifMainBlock :: ParseError [Token] Memory IO ([Token])
+-- ifMainBlock = do
+--                 (_,_, result, _, _, _, _) <- ifMainBlock
+--                 when (result) (endExecution )
+--                 b <- ifBlockElseif
+--                 c <- ifBlockElse
+--                 beginExecution
 
 
+ifBlock :: ParsecT [Token] Memory IO ([Token])
+ifBlock = (do
+            a <- ifToken
+            b <- openParToken
+            c <- expression
+            d <- closeParToken
+            e <- openCurlyBracketsToken
+            f <- stmts
+            g <- closeCurlyBracketsToken
+            return ([a] ++ [b] ++ [c] ++ [d] ++ [e] ++ f ++ [g])
+            )
+
+-- ifBlockElseif :: ParsecT [Token] Memory IO ([Token])
+-- ifBlockElseif = do 
+--                   a <- elseifToken
+--                   b <- openParToken
+--                   c <- expression
+--                   d <- closeParToken
+--                   when (not c) (endExecution)
+--                   e <- openCurlyBracketsToken
+--                   f <- stmts
+--                   g <- closeCurlyBracketsToken
+--                   return ([a] ++ [b] ++ [c] ++ [d] ++ [e] ++ f ++ [g])
+
+-- ifBlockElse :: ParsecT [Token] Memory IO ([Token])
+-- ifBlockElse = do
+--                 a <- elseToken
+--                 b <- openCurlyBracketsToken
+--                 c <- stmts
+--                 d <- closeCurlyBracketsToken
+--                 return ([a] ++ [b] ++ [c] ++ [d])
 
 
 -- ------------------------------subprogramsBlock---------------------------
@@ -379,7 +443,7 @@ stmts = do
 
 stmt :: ParsecT [Token] Memory IO ([Token])
 stmt = do
-          a <- (assign <|> printVar)
+          a <- (assign <|> printVar <|> ifBlock)
           b <- semiColonToken
           return (a ++ [b])
 
@@ -442,7 +506,7 @@ intLit = do
             return ([(Int v p)], Numeric v)
 
 op :: ParsecT [Token] Memory IO (Token)
-op = powToken <|> multToken <|> divToken <|> addToken <|> subToken
+op = powToken <|> multToken <|> divToken <|> addToken <|> subToken <|> lessToken <|> greaterToken
 
 varId :: ParsecT [Token] Memory IO ([Token], Type)
 varId = do 
@@ -498,11 +562,13 @@ remainingArguments = (do
 -- funções para a tabela de símbolos
 
 evalOp :: Type -> Token -> Type -> Type
+evalOp (Numeric x) (Pow _) (Numeric y) = Numeric (x ^ y)
+evalOp (Numeric x) (Mult _) (Numeric y) = Numeric (x * y)
+evalOp (Numeric x) (Div _) (Numeric y) = Numeric (x `div` y)
 evalOp (Numeric x) (Add _) (Numeric y) = Numeric (x + y)
 evalOp (Numeric x) (Sub _) (Numeric y) = Numeric (x - y)
-evalOp (Numeric x) (Mult _) (Numeric y) = Numeric (x * y)
-evalOp (Numeric x) (Pow _) (Numeric y) = Numeric (x ^ y)
-evalOp (Numeric x) (Div _) (Numeric y) = Numeric (x `div` y)
+evalOp (Numeric x) (Greater _) (Numeric y) = Boolean (x > y)
+evalOp (Numeric x) (Less _) (Numeric y) = Boolean (x < y)
 
 -- [(x, 10), (y, 15)]
 -- [([ (x, Numeric 10), (y, Numeric 15) ], [_])]

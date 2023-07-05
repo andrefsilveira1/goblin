@@ -17,14 +17,16 @@ tokens :-
   ";"                                   { \p s -> SemiColon (getLC p)}
   int                                   { \p s -> Type s (getLC p)}
   if                                    { \p s -> If (getLC p)}
+  "else if"                             { \p s -> ElseIf (getLC p)}
+  "else"                                { \p s -> Else (getLC p)}
   then                                  { \p s -> Then (getLC p)}
   write                                 { \p s -> Write (getLC p)}
   >                                     { \p s -> Greater (getLC p)}
+  "<"                                   { \p s -> Less (getLC p)}
   $digit+                               { \p s -> Int (read s)  (getLC p)}
   "("                                   { \p s -> OpenPar  (getLC p)}  
   ")"                                   { \p s -> ClosePar (getLC p)}
   Float                                 { \p s -> Float s (getLC p)}
-  Boolean                               { \p s -> Boolean s (getLC p)}
   Char                                  { \p s -> Char s (getLC p)}  
   vars                                  { \p s -> VarsBlock (getLC p)}
   subprograms                           { \p s -> SubprogramsBlock (getLC p)}
@@ -57,9 +59,12 @@ data Token =
   SemiColon            (Int, Int) |
   Type     String      (Int, Int) |
   If                   (Int, Int) |
+  ElseIf               (Int, Int) |
+  Else                 (Int, Int) |
   Then                 (Int, Int) |
   Write                (Int, Int) |
   Greater              (Int, Int) |
+  Less                 (Int, Int) |
   Id       String      (Int, Int) |
   Int      Int         (Int, Int) |
   StringLit   String   (Int, Int) |
@@ -67,7 +72,6 @@ data Token =
   ClosePar             (Int, Int) |
   Float    String      (Int, Int) |
   Char     String      (Int, Int) |
-  Boolean  String      (Int, Int) |
   VarsBlock            (Int, Int) |
   SubprogramsBlock     (Int, Int) |
   ProcessBlock         (Int, Int) |
