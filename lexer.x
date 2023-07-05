@@ -17,6 +17,8 @@ tokens :-
   ";"                                   { \p s -> SemiColon (getLC p)}
   int                                   { \p s -> Type s (getLC p)}
   if                                    { \p s -> If (getLC p)}
+  "else if"                             { \p s -> ElseIf (getLC p)}
+  "else"                                { \p s -> Else (getLC p)}
   then                                  { \p s -> Then (getLC p)}
   write                                 { \p s -> Write (getLC p)}
   >                                     { \p s -> Greater (getLC p)}
@@ -25,7 +27,6 @@ tokens :-
   "("                                   { \p s -> OpenPar  (getLC p)}  
   ")"                                   { \p s -> ClosePar (getLC p)}
   Float                                 { \p s -> Float s (getLC p)}
-  Boolean                               { \p s -> Boolean s (getLC p)}
   Char                                  { \p s -> Char s (getLC p)}  
   vars                                  { \p s -> VarsBlock (getLC p)}
   subprograms                           { \p s -> SubprogramsBlock (getLC p)}
@@ -35,6 +36,7 @@ tokens :-
   =                                     { \p s -> Equals (getLC p)}
   num                                   { \p s -> Num s (getLC p)}
   tempTemp                              { \p s -> NumWithSpecification (getLC p)}
+  return                                { \p s -> Return (getLC p)}
   ","                                   { \p s -> Comma (getLC p)}
   "+"                                   { \p s -> Add (getLC p)}
   "*"                                   { \p s -> Mult (getLC p)}
@@ -57,6 +59,8 @@ data Token =
   SemiColon            (Int, Int) |
   Type     String      (Int, Int) |
   If                   (Int, Int) |
+  ElseIf               (Int, Int) |
+  Else                 (Int, Int) |
   Then                 (Int, Int) |
   Write                (Int, Int) |
   Greater              (Int, Int) |
@@ -68,7 +72,6 @@ data Token =
   ClosePar             (Int, Int) |
   Float    String      (Int, Int) |
   Char     String      (Int, Int) |
-  Boolean  String      (Int, Int) |
   VarsBlock            (Int, Int) |
   SubprogramsBlock     (Int, Int) |
   ProcessBlock         (Int, Int) |
@@ -84,7 +87,8 @@ data Token =
   Pow                  (Int, Int) |
   Div                  (Int, Int) |
   Print                (Int, Int) |
-  Quote                (Int, Int)
+  Quote                (Int, Int) |
+  Return               (Int, Int)
   deriving (Eq,Show)   
 
 getLC (AlexPn _ l c) = (l, c) 

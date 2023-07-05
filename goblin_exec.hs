@@ -11,46 +11,52 @@ import System.Environment
 
 
 
-
-data Type = Numeric Int
+--type Digit = 0 | 1 | 2...| 9
+data Type = Numeric Int | Boolean Bool-- | NumericWithSpec ((Int, [Digit]), (Int, [Digit]))
 type Variable = (String, Type) -- nome e tipo
 type Variables = [Variable] -- nome e tipo
 
 type FunName = String
 type FunParams = [Token]
-type FunArguments = [Token]
-type FunTokens = [Token]
-type Function = (FunName, FunParams, FunArguments, FunTokens)
+type FunBody = [Token]
+
+--TODO Refatorar estrutura de Function no código (arguments foram removidos)
+type Function = (FunName, FunParams, FunBody)
 
 type Functions = [Function] 
 type Stack = [(Variables, Functions)]
 
 -- Nossa memória que será o user state no parsec
-type Memory = (Stack, Bool) -- stack de variáveis e funções e flag indicativa de execução 
+type Memory = (Stack, Bool) -- stack de variáveis e funções e flag indicativa de execução
 
 
-currentFunctions :: Stack -> Functions
-currentFunctions (s:_) = getFunctions s
-currentFunctions [] = []
+getTopFuns :: Stack -> Functions
+getTopFuns (t:_) = getFunsFromStackCell t
+getTopFuns [] = []
 
-getFunctions :: (Variables, Functions) -> Functions
-getFunctions (_, funs) = funs
+getFunsFromStackCell :: (Variables, Functions) -> Functions
+getFunsFromStackCell (_, funs) = funs
 
 
-currentVars :: Stack -> Variables
-currentVars (s:_) = getVars s
-currentVars [] = []
+getTopVars :: Stack -> Variables
+getTopVars (t:_) = getVarsFromStackCell t
+getTopVars [] = []
 
-getVars :: (Variables, Functions) -> Variables
-getVars (vars, _) = vars
+getVarsFromStackCell :: (Variables, Functions) -> Variables
+getVarsFromStackCell (vars, _) = vars
 
 
 printMem :: Memory -> IO ()
-printMem (stack, _) = print (printMemVars (currentVars stack))
+printMem (stack, _) = print (printMemVars (getTopVars stack) ++ "FUNS: " ++ printMemFuns (getTopFuns stack))
 
 printMemVars :: Variables -> String
 printMemVars  [] = []
 printMemVars ((name, Numeric val):lv) = name ++ " " ++ show val ++ ", " ++ printMemVars lv
+
+
+printMemFuns :: Functions -> String
+printMemFuns  [] = []
+printMemFuns ((name, _, _):lf) = name ++ ", "  ++ printMemFuns lf
 
 pushMemStack :: Memory -> Memory
 pushMemStack (stack:sl, ir) = ([stack, stack] ++ sl, ir)
@@ -59,12 +65,12 @@ popMemStack :: Memory -> Memory
 popMemStack (stack:sl, ir) = (sl, ir)
 
 
-auxPrint :: Token -> String
-auxPrint (Int valor _) = show valor
-auxPrint (StringLit valor _) = init(tail(valor))
+auxPrint :: Type -> String
+auxPrint (Numeric value) = show value
+--auxPrint (StringLit value _) = init(tail(value))
 
-printVars :: Token -> Token -> IO ()
-printVars str tok = putStrLn (auxPrint (str) ++ auxPrint(tok))
+printVars :: Token -> Type -> IO ()
+printVars (StringLit value _) tok = putStrLn (init(tail(value)) ++ auxPrint(tok))
 -- ++ " " ++ show tok ++ "\n"
 
 
@@ -161,9 +167,21 @@ printToken = tokenPrim show update_pos get_token where
   get_token (Print p) = Just (Print p)
   get_token _    = Nothing
 
+returnToken = tokenPrim show update_pos get_token where
+  get_token (Return p) = Just (Return p)
+  get_token _   = Nothing
+
 ifToken = tokenPrim show update_pos get_token where
   get_token (If p) = Just (If p)
   get_token _    = Nothing
+
+-- elseToken = tokenPrim show update_pos get_token where
+--   get_token (Else p) = Just (Else p)
+--   get_token _ = Nothing
+
+-- elseifToken = tokenPrim show update_pos get_token where
+--   get_token (ElseIf p) = Just (ElseIf p)
+--   get_token _ = Nothing  
 
 lessToken = tokenPrim show update_pos get_token where
   get_token (Less p) = Just (Less p)
@@ -177,6 +195,8 @@ greaterToken = tokenPrim show update_pos get_token where
 
 
 
+
+
   
 
 floatToken :: ParsecT [Token] st IO (Token)
@@ -184,10 +204,10 @@ floatToken = tokenPrim show update_pos get_token where
   get_token (Float x p)   = Just (Float x p)
   get_token _           = Nothing
 
-booleanToken :: ParsecT [Token] st IO (Token)
-booleanToken = tokenPrim show update_pos get_token where 
-  get_token (Boolean x p)  = Just (Boolean x p)
-  get_token _            = Nothing
+-- booleanToken :: ParsecT [Token] st IO (Token)
+-- booleanToken = tokenPrim show update_pos get_token where 
+--   get_token (Boolean x p)  = Just (Boolean x p)
+--   get_token _            = Nothing
 
 stringLitToken :: ParsecT [Token] st IO (Token)
 stringLitToken = tokenPrim show update_pos get_token where 
@@ -219,6 +239,9 @@ program = do
 
 beginExecution :: Memory -> Memory
 beginExecution (stack, _) = (stack, True)
+
+endExecution :: Memory -> Memory
+endExecution (stack, _) = (stack, False)
 
 isRunning :: Memory -> Bool
 isRunning (stack, ie) = ie
@@ -273,25 +296,53 @@ printVar = do
                 b <- openParToken
                 string <- stringLitToken
                 comma <- commaToken
-                c <- expression
+                (expT, expVal) <- expression
                 g <- closeParToken
-                liftIO (printVars string c)
-                return ([a] ++ [b]++ [string] ++  [comma] ++ [c] ++ [g])
-
+                liftIO (printVars string expVal)
+                return ([a] ++ [b]++ [string] ++  [comma] ++ expT ++ [g])
 
 -- ------------------------------Salto condicional---------------------------
 
+-- ifMainBlock :: ParseError [Token] Memory IO ([Token])
+-- ifMainBlock = do
+--                 (_,_, result, _, _, _, _) <- ifMainBlock
+--                 when (result) (endExecution )
+--                 b <- ifBlockElseif
+--                 c <- ifBlockElse
+--                 beginExecution
+
+
 ifBlock :: ParsecT [Token] Memory IO ([Token])
-ifBlock = do
+ifBlock = (do
             a <- ifToken
             b <- openParToken
-            c <- expression
+            (c, _) <- expression
             d <- closeParToken
             e <- openCurlyBracketsToken
             f <- stmts
             g <- closeCurlyBracketsToken
-            return ([a] ++ [b] ++ [c] ++ [d] ++ [e] ++ f ++ [g])
+            return ([a] ++ [b] ++ c ++ [d] ++ [e] ++ f ++ [g])
+            )
 
+-- ifBlockElseif :: ParsecT [Token] Memory IO ([Token])
+-- ifBlockElseif = do 
+--                   a <- elseifToken
+--                   b <- openParToken
+--                   c <- expression
+--                   d <- closeParToken
+--                   when (not c) (endExecution)
+--                   e <- openCurlyBracketsToken
+--                   f <- stmts
+--                   g <- closeCurlyBracketsToken
+--                   return ([a] ++ [b] ++ [c] ++ [d] ++ [e] ++ f ++ [g])
+
+-- ifBlockElse :: ParsecT [Token] Memory IO ([Token])
+-- ifBlockElse = do
+--                 a <- elseToken
+--                 b <- openCurlyBracketsToken
+--                 c <- stmts
+--                 d <- closeCurlyBracketsToken
+--                 return ([a] ++ [b] ++ [c] ++ [d])
 
 
 -- ------------------------------subprogramsBlock---------------------------
@@ -321,11 +372,11 @@ subProgram = do
                 e <- closeParToken
                 s <- getState
                 -- when (isRunning s) ()
-                f <- subProgramBody
+                (f, _) <- subProgramBody
                 updateState(popMemStack)
                 s <- getState
                 let allTokens = [a] ++ [b] ++ [c] ++ d ++ [e] ++ f
-                when (isRunning s) (updateState(symtable_insert_subprogram b d allTokens))
+                updateState(symtable_insert_subprogram b d f)
                 return (allTokens)
 
 
@@ -355,13 +406,16 @@ remainingSubPrograms =
                       (subProgram) <|> (return [])
 
 
-subProgramBody :: ParsecT [Token] Memory IO ([Token])
+subProgramBody :: ParsecT [Token] Memory IO ([Token], Type)
 subProgramBody = do 
                     a <- openCurlyBracketsToken
                     b <- varsBlock
                     c <- processBlock
-                    d <- closeCurlyBracketsToken
-                    return ([a] ++ b ++ c ++ [d])
+                    d <- returnToken
+                    (expT, expVal) <- expression
+                    e <- semiColonToken
+                    f <- closeCurlyBracketsToken
+                    return ([a] ++ b ++ c ++ [d] ++ expT ++ [e] ++ [f], expVal)
 
 
 
@@ -389,7 +443,7 @@ stmts = do
 
 stmt :: ParsecT [Token] Memory IO ([Token])
 stmt = do
-          a <- ( assign <|> printVar <|> ifBlock)
+          a <- (assign <|> printVar <|> ifBlock)
           b <- semiColonToken
           return (a ++ [b])
 
@@ -401,78 +455,97 @@ assign :: ParsecT [Token] Memory IO ([Token])
 assign = do
           a <- idToken
           b <- equalsToken
-          c <- expression
+          (expT, expVal) <- expression
           d <- getState
-          when (isRunning d) (updateState(symtableUpdate (a, c)))
+          when (isRunning d) (updateState(symtableUpdate a expVal))
           e <- getState
           liftIO (printMem e)
-          return ([a] ++ [b] ++ [c])
+          return ([a] ++ [b] ++ expT)
 
-expression :: ParsecT [Token] Memory IO (Token)
+
+expression :: ParsecT [Token] Memory IO ([Token], Type)
 expression = try binOp <|> unaryExpression
-                --  binOp <|> 
-                -- intToken <|> 
-                -- varId 
 
-
-unaryExpression :: ParsecT [Token] Memory IO (Token)
+unaryExpression :: ParsecT [Token] Memory IO ([Token], Type)
 unaryExpression = do 
                     a <- op
-                    b <- intToken
-                    return (b)
+                    (tok, val) <- intLit
+                    let valWithSign = evalSign a val
+                    return ([a] ++ tok, valWithSign)
+
+
+-- TODO: finalizar implemnetação
+evalSign :: Token -> Type -> Type
+evalSign _ t = t
+
 
 --- funções considerando associatividade à esquerda 
-binOp :: ParsecT [Token] Memory IO Token
+binOp :: ParsecT [Token] Memory IO ([Token], Type)
 binOp = do
-  a <- operand
-  d <- evalueRemaining (a)
-  return (d)
+  (operandT, operandV) <- operand
+  (tok, val) <- evalueRemaining (operandV)
+  return (operandT ++ tok, val)
 
 
-evalueRemaining :: Token -> ParsecT [Token] Memory IO Token
+evalueRemaining :: Type -> ParsecT [Token] Memory IO ([Token], Type)
 evalueRemaining numb = do
                       a <- op
-                      b <- operand
-                      d <- evalueRemaining (evalOp numb a b)
-                      return (d)
-                    <|> return (numb)
+                      (operandT, operandV) <- operand
+                      (tok, val) <- evalueRemaining (evalOp numb a operandV)
+                      return ([a] ++ operandT ++ tok, val)
+                    <|> return ([], numb)
 
+operand :: ParsecT [Token] Memory IO ([Token], Type)
+operand = try subProgramCall <|>
+          (varId <|>
+          intLit)
 
-operand :: ParsecT [Token] Memory IO (Token)
-operand = varId <|> intToken
+intLit :: ParsecT [Token] Memory IO ([Token], Type)
+intLit = do
+            (Int v p) <- intToken
+            return ([(Int v p)], Numeric v)
 
 op :: ParsecT [Token] Memory IO (Token)
 op = powToken <|> multToken <|> divToken <|> addToken <|> subToken <|> lessToken <|> greaterToken
 
-varId :: ParsecT [Token] Memory IO (Token)
+varId :: ParsecT [Token] Memory IO ([Token], Type)
 varId = do 
             a <- idToken
             s <- getState
-            return (evalVar a s)
+            return ([a], evalVar a s)
 
 
 
 
                   
 
-subProgramCall :: ParsecT [Token] [(Token,Token)] IO ([Token])
+subProgramCall :: ParsecT [Token] Memory IO ([Token], Type)
 subProgramCall = do 
-                  a <- idToken
+                  (Id funName p) <- idToken
                   b <- openParToken
                   c <- argumentList
                   d <- closeParToken
-                  e <- semiColonToken
-                  -- updateState(addArgumentsToFunction idToken c)
-                  return ([a] ++ [b] ++ c ++ [d] ++ [e])
+                  updateState(pushMemStack)
+                  updateState(addParametersToMemory (Id funName p) c)
+
+                  (s, _) <- getState
+                  let (_, _, funBody) = findFun funName (getTopFuns s)
+                  inp <- getInput
+                  setInput funBody
+                  (_, v) <- subProgramBody
+                  setInput inp
+
+                  updateState(popMemStack)
+                  return ([(Id funName p)] ++ [b] ++ c ++ [d], v)
 
 
-argumentList :: ParsecT [Token] [(Token,Token)] IO ([Token])
+argumentList :: ParsecT [Token] Memory IO ([Token])
 argumentList = do  
                   a <- idToken
                   b <- remainingArguments
                   return ([a] ++ b)
 
-remainingArguments :: ParsecT [Token] [(Token,Token)] IO ([Token])
+remainingArguments :: ParsecT [Token] Memory IO ([Token])
 remainingArguments = (do  
                   a <- commaToken
                   b <- argumentList
@@ -488,80 +561,112 @@ remainingArguments = (do
 
 -- funções para a tabela de símbolos
 
-evalOp :: Token -> Token -> Token -> Token
-evalOp (Int x p) (Add _) (Int y _) = Int (x + y) p
-evalOp (Int x p) (Sub _) (Int y _) = Int (x - y) p
-evalOp (Int x p) (Mult _) (Int y _) = Int (x * y) p
-evalOp (Int x p) (Pow _) (Int y _) = Int (x ^ y) p
-evalOp (Int x p) (Div _) (Int y _) = Int (x `div` y) p
-evalOp (Int x p) (Greater _) (Int y _) = Boolean (show (x > y) )p
-evalOp (Int x p) (Less _) (Int y _) = Boolean (show (x < y)) p
+evalOp :: Type -> Token -> Type -> Type
+evalOp (Numeric x) (Pow _) (Numeric y) = Numeric (x ^ y)
+evalOp (Numeric x) (Mult _) (Numeric y) = Numeric (x * y)
+evalOp (Numeric x) (Div _) (Numeric y) = Numeric (x `div` y)
+evalOp (Numeric x) (Add _) (Numeric y) = Numeric (x + y)
+evalOp (Numeric x) (Sub _) (Numeric y) = Numeric (x - y)
+evalOp (Numeric x) (Greater _) (Numeric y) = Boolean (x > y)
+evalOp (Numeric x) (Less _) (Numeric y) = Boolean (x < y)
 
 -- [(x, 10), (y, 15)]
 -- [([ (x, Numeric 10), (y, Numeric 15) ], [_])]
 -- Formato antigo: [(Token, Token)]
 
 
-evalVar :: Token -> Memory-> Token
-evalVar t (stack, _) = evalVarAux t (currentVars stack)
+evalVar :: Token -> Memory -> Type
+evalVar t (stack, _) = evalVarAux t (getTopVars stack)
                               
 
 -- TODO: Por que fail não é aceito pelo compilador nessa função?
-evalVarAux :: Token -> Variables -> Token
+evalVarAux :: Token -> Variables -> Type
 evalVarAux (Id x (l, c)) [] = error ("variable " ++ x ++ " not in scope at line " ++ show l ++ ", column " ++ show c)
 evalVarAux (Id x p) ((name, Numeric v):lv) = 
-                                    if x == name then Int v p
+                                    if x == name then Numeric v
                                     else evalVarAux (Id x p) lv
 
--- evalFunCall :: Token -> Memory -> Memory
--- evalFunCall (Id funName _) ((_, funs):_, _) = do 
+--evalFunCall :: Token -> Memory -> ParsecT [Token] Memory IO (Type)
+--evalFunCall (Id funName _) ((_, funs):_, _) = do
 --                                                 a <- getInput
 --                                                 b <- getState
---                                                 c <- subProgram b "Error message" funTokens 
---                                                   where funTokens = findFunTokens funName funs
---                                                 d <- 
+--                                                 setInput funBody
+--                                                 x <- runParserT subProgramBody b "Error message" funBody
+--                                                 return (v)
+--                                                   where (_, _, funBody) = findFun funName funs
+--evalFunCall :: Token -> Type
+--evalFunCall _ = Numeric 0
 
 -- TODO: Exibir erro caso não encontre função
--- findFun :: String -> Functions -> Function
--- findFun name ((n, params, arguments, funTokens):lf) = if name == n then (n, params, arguments, funTokens)
---                                           else findFunTokens name lf
+findFun :: String -> Functions -> Function
+findFun name ((n, params, body):lf) = if name == n then (n, params, body)
+                                           else findFun name lf
 
--- addArgumentsToFunction :: String -> [Token] -> Memory -> Memory
+addParametersToMemory :: Token -> [Token] -> Memory -> Memory
+addParametersToMemory (Id name _) args ((vars, funs):lm , ir) = addParametersToMemoryAux args params ((vars, funs):lm , ir)
+    where (_, params, _) = findFun name funs
+
+addParametersToMemoryAux :: [Token] -> [Token] -> Memory -> Memory
+addParametersToMemoryAux ((Id name _):args) ((Id paramName pp):params) mem =
+    addParametersToMemoryAux args params updatedMem
+        where
+            (_, val) = getVar name mem
+            updatedMem = symtable_insert_var (Id paramName pp) val mem
+
+-- In case of a collon or type in the paramList
+addParametersToMemoryAux args ((Comma _):params) mem = addParametersToMemoryAux args params mem
+addParametersToMemoryAux args ((Num _ _):params) mem = addParametersToMemoryAux args params mem
+addParametersToMemoryAux ((Comma _):args) params mem = addParametersToMemoryAux args params mem
+addParametersToMemoryAux [] [] mem = mem
+
+
+--getVarVal :: Variable -> Type
+--getVarVal (_, val) = val
+
+-- Get a variable by name from the most recent reference enviroment of the Stack
+getVar :: String -> Memory -> Variable
+getVar name (st:ls, _) = getVarAux name (getVarsFromStackCell st)
+
+getVarAux :: String -> Variables -> Variable
+getVarAux srcName ((tgtName, varType):lv) =
+    if srcName == tgtName then (tgtName, varType)
+    else getVarAux srcName lv
 
 
 
 
-get_default_value :: Token -> Token
-get_default_value (Num "num" p) = Int 0 p
+get_default_value :: Token -> Type
+get_default_value (Num "num" _) = Numeric 0
 
 
-symtable_insert_var :: Token -> Token -> Memory -> Memory
+symtable_insert_var :: Token -> Type -> Memory -> Memory
 symtable_insert_var (Id name _) varType ([], ir) = ((updatedVars, []):[], ir)
                                                     where updatedVars = addVarToMemory name varType []
-symtable_insert_var (Id name _) varType (s:ls, ir) = ((updatedVars, (getFunctions s)):ls, ir)
-                                                    where updatedVars = addVarToMemory name varType (getVars s)
+symtable_insert_var (Id name _) varType (s:ls, ir) = ((updatedVars, (getFunsFromStackCell s)):ls, ir)
+                                                    where updatedVars = addVarToMemory name varType (getVarsFromStackCell s)
 
-addVarToMemory :: String -> Token -> Variables -> Variables
-addVarToMemory name (Int val _) vars = (name, Numeric val):vars
+addVarToMemory :: String -> Type -> Variables -> Variables
+addVarToMemory name varType vars = (name, varType):vars
 
 symtable_insert_subprogram :: Token -> [Token] -> [Token] -> Memory -> Memory
 symtable_insert_subprogram (Id name _) parametersList allTokens ([], ir) = (([], updatedFunctions):[], ir)
-                                                                        where updatedFunctions = addSubprogramToMemory name parametersList allTokens []
-symtable_insert_subprogram (Id name _) parametersList allTokens (s:ls, ir) = ((getVars s, updatedFunctions):ls, ir)
-                                                                        where updatedFunctions = addSubprogramToMemory name parametersList allTokens (getFunctions s)
+    where updatedFunctions = addSubprogramToMemory name parametersList allTokens []
+symtable_insert_subprogram (Id name _) parametersList allTokens (s:ls, ir) = ((getVarsFromStackCell s, updatedFunctions):ls, ir)
+    where updatedFunctions = addSubprogramToMemory name parametersList allTokens (getFunsFromStackCell s)
 
 addSubprogramToMemory :: String -> [Token] -> [Token] -> Functions -> Functions
-addSubprogramToMemory name parametersList body funs = (name, parametersList, [], body):funs
+addSubprogramToMemory name parametersList body funs = (name, parametersList, body):funs
 
 -- TODO: Por que fail não é aceito pelo compilador nessa função após o isRunning ser adicionado a memória?
-symtableUpdate :: (Token, Token) -> Memory -> Memory
-symtableUpdate idVal (s:ls, ir) = ((symtableUpdateAux idVal (getVars s), getFunctions s):ls, ir)
+-- Recebe um idToken, um typeToken, a memória e retorna a memória atualizada
+symtableUpdate :: Token -> Type -> Memory -> Memory
+symtableUpdate idT val (s:ls, ir) = ((symtableUpdateAux idT val (getVarsFromStackCell s), getFunsFromStackCell s):ls, ir)
 
-symtableUpdateAux :: (Token, Token) -> Variables -> Variables
-symtableUpdateAux _ [] = fail "variable not found"
-symtableUpdateAux (Id id1 p, Int v1 p2) ((name, Numeric v):lv) = 
-                               if id1 == name then (id1, Numeric v1):lv
-                               else (name, Numeric v) : symtableUpdateAux (Id id1 p, Int v1 p2) lv
+symtableUpdateAux :: Token -> Type -> Variables -> Variables
+symtableUpdateAux _ _ [] = fail "variable not found"
+symtableUpdateAux (Id id1 p) val ((name, Numeric v):lv) =
+                               if id1 == name then (id1, val):lv
+                               else (name, Numeric v) : symtableUpdateAux (Id id1 p) val lv
 
 
 -- symtable_remove :: (Token,Token) -> Memory -> Memory
