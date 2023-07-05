@@ -38,7 +38,7 @@ ghc goblin_exec.hs lexer.hs -o parser
 Finalmente, para o parser ler um arquivo de exemplo:
 
 ```
-./parser program.pe
+./parser program-readable.pe
 ```
 
 
