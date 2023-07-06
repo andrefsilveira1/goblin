@@ -428,7 +428,7 @@ printVar = do
 
 
 
-ifMainBlock :: Bool -> ParsecT [Token] Memory IO ([Token])
+ifMainBlock :: ParsecT [Token] Memory IO ([Token])
 ifMainBlock = do
                 (_, valor) <- ifEvalue
                 s <- getState
