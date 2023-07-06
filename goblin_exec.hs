@@ -204,10 +204,6 @@ elseToken = tokenPrim show update_pos get_token where
   get_token (Else p) = Just (Else p)
   get_token _ = Nothing
 
--- elseifToken = tokenPrim show update_pos get_token where
---   get_token (ElseIf p) = Just (ElseIf p)
---   get_token _ = Nothing  
-
 lessToken = tokenPrim show update_pos get_token where
   get_token (Less p) = Just (Less p)
   get_token _    = Nothing
@@ -229,10 +225,6 @@ floatToken = tokenPrim show update_pos get_token where
   get_token (Float x p)   = Just (Float x p)
   get_token _           = Nothing
 
--- booleanToken :: ParsecT [Token] st IO (Token)
--- booleanToken = tokenPrim show update_pos get_token where 
---   get_token (Boolean x p)  = Just (Boolean x p)
---   get_token _            = Nothing
 
 stringLitToken :: ParsecT [Token] st IO (Token)
 stringLitToken = tokenPrim show update_pos get_token where 
