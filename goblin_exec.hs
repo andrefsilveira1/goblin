@@ -84,10 +84,10 @@ printMemFuns  [] = []
 printMemFuns ((name, _, _):lf) = name ++ ", "  ++ printMemFuns lf
 
 pushMemStack :: Memory -> Memory
-pushMemStack (stack:sl, ir, _) = ([stack, stack] ++ sl, ir)
+pushMemStack (stack:sl, ir, irb) = ([stack, stack] ++ sl, ir, irb)
 
 popMemStack :: Memory -> Memory
-popMemStack (stack:sl, ir, _) = (sl, ir)
+popMemStack (stack:sl, ir, irb) = (sl, ir, irb)
 
 
 auxPrint :: Type -> String
