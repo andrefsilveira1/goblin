@@ -204,10 +204,6 @@ elseToken = tokenPrim show update_pos get_token where
   get_token (Else p) = Just (Else p)
   get_token _ = Nothing
 
--- elseifToken = tokenPrim show update_pos get_token where
---   get_token (ElseIf p) = Just (ElseIf p)
---   get_token _ = Nothing  
-
 lessToken = tokenPrim show update_pos get_token where
   get_token (Less p) = Just (Less p)
   get_token _    = Nothing
