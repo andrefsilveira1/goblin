@@ -419,7 +419,7 @@ printVar = do
                 (expT, expVal) <- expression
                 g <- closeParToken
                 liftIO (printVars string expVal)
-                return ([a] ++ [b]++ [string] ++  [comma] ++ expT ++ [g])
+                return ([a] ++ [b] ++ [string] ++  [comma] ++ expT ++ [g])
 
 
 

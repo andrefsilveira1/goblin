@@ -37,4 +37,7 @@ process:
 	problema = sum(x, y);
 	if(x < c) {
 		x = 1;
+	} else {
+		x = 5;
 	};
+	print("Variável: ", x);
