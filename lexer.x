@@ -17,7 +17,6 @@ tokens :-
   ";"                                   { \p s -> SemiColon (getLC p)}
   int                                   { \p s -> Type s (getLC p)}
   if                                    { \p s -> If (getLC p)}
-  "else if"                             { \p s -> ElseIf (getLC p)}
   "else"                                { \p s -> Else (getLC p)}
   then                                  { \p s -> Then (getLC p)}
   write                                 { \p s -> Write (getLC p)}
@@ -59,7 +58,6 @@ data Token =
   SemiColon            (Int, Int) |
   Type     String      (Int, Int) |
   If                   (Int, Int) |
-  ElseIf               (Int, Int) |
   Else                 (Int, Int) |
   Then                 (Int, Int) |
   Write                (Int, Int) |
