@@ -225,10 +225,6 @@ floatToken = tokenPrim show update_pos get_token where
   get_token (Float x p)   = Just (Float x p)
   get_token _           = Nothing
 
--- booleanToken :: ParsecT [Token] st IO (Token)
--- booleanToken = tokenPrim show update_pos get_token where 
---   get_token (Boolean x p)  = Just (Boolean x p)
---   get_token _            = Nothing
 
 stringLitToken :: ParsecT [Token] st IO (Token)
 stringLitToken = tokenPrim show update_pos get_token where 
