@@ -430,13 +430,14 @@ printVar = do
 
 ifMainBlock :: ParsecT [Token] Memory IO ([Token])
 ifMainBlock = do
-                (_, valor) <- ifEvalue
+                (_, (Boolean valor)) <- ifEvalue
                 s <- getState
                 when(isRunning s && not valor) (updateState(endBlockExecution))
                 a <- block
                 when(isRunning s && not valor) (updateState(beginBlockExecution))
                 b <- remainingIfblock
                 updateState(beginBlockExecution)
+                return (a ++ b)
 
 ifEvalue :: ParsecT [Token] Memory IO ([Token], Type)
 ifEvalue = (do
@@ -456,14 +457,14 @@ remainingIfblock = try (
                           c <- block
                           when(isRunning s && not valor) (updateState(beginBlockExecution))
                           d <- remainingIfblock
-                          return ([a] ++ [b] ++ [c] ++ [d])
+                          return ([a] ++ b ++ c ++ d)
                         )
                      <|>
                         (
                           do
                           a <- elseToken
                           b <- block
-                          return ([a] ++ [b])
+                          return ([a] ++ b)
                         )
                      <|> return ([]) 
 
@@ -561,7 +562,7 @@ subProgramCall = do
                   updateState(pushMemStack)
                   updateState(addParametersToMemory (Id funName p) c)
 
-                  (s, _) <- getState
+                  (s, _, _) <- getState
                   let (_, _, funBody) = findFun funName (getTopFuns s)
                   inp <- getInput
                   setInput funBody
@@ -609,7 +610,7 @@ evalOp (Numeric x) (Less _) (Numeric y) = Boolean (x < y)
 
 
 evalVar :: Token -> Memory -> Type
-evalVar t (stack, _) = evalVarAux t (getTopVars stack)
+evalVar t (stack, _, _) = evalVarAux t (getTopVars stack)
                               
 
 -- TODO: Por que fail não é aceito pelo compilador nessa função?
@@ -636,7 +637,7 @@ findFun name ((n, params, body):lf) = if name == n then (n, params, body)
                                            else findFun name lf
 
 addParametersToMemory :: Token -> [Token] -> Memory -> Memory
-addParametersToMemory (Id name _) args ((vars, funs):lm , ir) = addParametersToMemoryAux args params ((vars, funs):lm , ir)
+addParametersToMemory (Id name _) args ((vars, funs):lm , ir, irb) = addParametersToMemoryAux args params ((vars, funs):lm , ir, irb)
     where (_, params, _) = findFun name funs
 
 addParametersToMemoryAux :: [Token] -> [Token] -> Memory -> Memory
@@ -658,7 +659,7 @@ addParametersToMemoryAux [] [] mem = mem
 
 -- Get a variable by name from the most recent reference enviroment of the Stack
 getVar :: String -> Memory -> Variable
-getVar name (st:ls, _) = getVarAux name (getVarsFromStackCell st)
+getVar name (st:ls, _, _) = getVarAux name (getVarsFromStackCell st)
 
 getVarAux :: String -> Variables -> Variable
 getVarAux srcName ((tgtName, varType):lv) =
@@ -673,18 +674,18 @@ get_default_value (Num "num" _) = Numeric 0
 
 
 symtable_insert_var :: Token -> Type -> Memory -> Memory
-symtable_insert_var (Id name _) varType ([], ir) = ((updatedVars, []):[], ir)
+symtable_insert_var (Id name _) varType ([], ir, irb) = ((updatedVars, []):[], ir, irb)
                                                     where updatedVars = addVarToMemory name varType []
-symtable_insert_var (Id name _) varType (s:ls, ir) = ((updatedVars, (getFunsFromStackCell s)):ls, ir)
+symtable_insert_var (Id name _) varType (s:ls, ir, irb) = ((updatedVars, (getFunsFromStackCell s)):ls, ir, irb)
                                                     where updatedVars = addVarToMemory name varType (getVarsFromStackCell s)
 
 addVarToMemory :: String -> Type -> Variables -> Variables
 addVarToMemory name varType vars = (name, varType):vars
 
 symtable_insert_subprogram :: Token -> [Token] -> [Token] -> Memory -> Memory
-symtable_insert_subprogram (Id name _) parametersList allTokens ([], ir) = (([], updatedFunctions):[], ir)
+symtable_insert_subprogram (Id name _) parametersList allTokens ([], ir, irb) = (([], updatedFunctions):[], ir, irb)
     where updatedFunctions = addSubprogramToMemory name parametersList allTokens []
-symtable_insert_subprogram (Id name _) parametersList allTokens (s:ls, ir) = ((getVarsFromStackCell s, updatedFunctions):ls, ir)
+symtable_insert_subprogram (Id name _) parametersList allTokens (s:ls, ir, irb) = ((getVarsFromStackCell s, updatedFunctions):ls, ir, irb)
     where updatedFunctions = addSubprogramToMemory name parametersList allTokens (getFunsFromStackCell s)
 
 addSubprogramToMemory :: String -> [Token] -> [Token] -> Functions -> Functions
@@ -693,7 +694,7 @@ addSubprogramToMemory name parametersList body funs = (name, parametersList, bod
 -- TODO: Por que fail não é aceito pelo compilador nessa função após o isRunning ser adicionado a memória?
 -- Recebe um idToken, um typeToken, a memória e retorna a memória atualizada
 symtableUpdate :: Token -> Type -> Memory -> Memory
-symtableUpdate idT val (s:ls, ir) = ((symtableUpdateAux idT val (getVarsFromStackCell s), getFunsFromStackCell s):ls, ir)
+symtableUpdate idT val (s:ls, ir, irb) = ((symtableUpdateAux idT val (getVarsFromStackCell s), getFunsFromStackCell s):ls, ir, irb)
 
 symtableUpdateAux :: Token -> Type -> Variables -> Variables
 symtableUpdateAux _ _ [] = fail "variable not found"
@@ -714,7 +715,7 @@ symtableUpdateAux (Id id1 p) val ((name, Numeric v):lv) =
 -- invocação do parser para o símbolo de partida 
 
 parser :: [Token] -> IO (Either ParseError [Token])
-parser tokens = runParserT program ([], False) "Error message" tokens
+parser tokens = runParserT program ([], False, False) "Error message" tokens
 
 main :: IO ()
 main = do a <- getArgs
