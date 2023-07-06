@@ -54,7 +54,7 @@ isBlockRunning (_, _, irb) = irb
 
 
 beginExecution :: Memory -> Memory
-beginExecution (stack, _) = (stack, True)
+beginExecution (stack, _ , _) = (stack, True, True)
 
 beginBlockExecution :: Memory -> Memory
 beginBlockExecution (stack, fe, _) = (stack, True, True)
@@ -72,7 +72,7 @@ endBlockExecution (stack, fe, _) = (stack, fe, False)
 
 
 printMem :: Memory -> IO ()
-printMem (stack, _) = print (printMemVars (getTopVars stack) ++ "FUNS: " ++ printMemFuns (getTopFuns stack))
+printMem (stack, _, _) = print (printMemVars (getTopVars stack) ++ "FUNS: " ++ printMemFuns (getTopFuns stack))
 
 printMemVars :: Variables -> String
 printMemVars  [] = []
@@ -84,10 +84,10 @@ printMemFuns  [] = []
 printMemFuns ((name, _, _):lf) = name ++ ", "  ++ printMemFuns lf
 
 pushMemStack :: Memory -> Memory
-pushMemStack (stack:sl, ir) = ([stack, stack] ++ sl, ir)
+pushMemStack (stack:sl, ir, _) = ([stack, stack] ++ sl, ir)
 
 popMemStack :: Memory -> Memory
-popMemStack (stack:sl, ir) = (sl, ir)
+popMemStack (stack:sl, ir, _) = (sl, ir)
 
 
 auxPrint :: Type -> String
@@ -200,9 +200,9 @@ ifToken = tokenPrim show update_pos get_token where
   get_token (If p) = Just (If p)
   get_token _    = Nothing
 
--- elseToken = tokenPrim show update_pos get_token where
---   get_token (Else p) = Just (Else p)
---   get_token _ = Nothing
+elseToken = tokenPrim show update_pos get_token where
+  get_token (Else p) = Just (Else p)
+  get_token _ = Nothing
 
 -- elseifToken = tokenPrim show update_pos get_token where
 --   get_token (ElseIf p) = Just (ElseIf p)
@@ -428,7 +428,7 @@ printVar = do
 
 
 
-ifMainBlock :: Bool -> ParseError [Token] Memory IO ([Token])
+ifMainBlock :: Bool -> ParsecT [Token] Memory IO ([Token])
 ifMainBlock = do
                 (_, valor) <- ifEvalue
                 s <- getState
@@ -447,20 +447,25 @@ ifEvalue = (do
             return ([a] ++ [b] ++ c ++ [d], valor))
 
 remainingIfblock :: ParsecT [Token] Memory IO ([Token])
-remainingIfblock = try (do 
-                        a <- elseToken
-                        (b, (Boolean valor)) <- ifEvalue
-                        when (not valor) (endExecution)
-                        c <- block
-                        when (not valor ) (beginExecution)
-                        d <- remainingIfblock
-                        return ([a] ++ [b] ++ [c] ++ [d]))
-                  <|>
-                    (do
-                      a <- elseToken
-                      b <- block
-                    )
-                  <|> return ([]) 
+remainingIfblock = try (
+                          do 
+                          a <- elseToken
+                          (b, (Boolean valor)) <- ifEvalue
+                          s <- getState
+                          when(isRunning s && not valor) (updateState(endBlockExecution))
+                          c <- block
+                          when(isRunning s && not valor) (updateState(beginBlockExecution))
+                          d <- remainingIfblock
+                          return ([a] ++ [b] ++ [c] ++ [d])
+                        )
+                     <|>
+                        (
+                          do
+                          a <- elseToken
+                          b <- block
+                          return ([a] ++ [b])
+                        )
+                     <|> return ([]) 
 
 
 block :: ParsecT [Token] Memory IO ([Token])
