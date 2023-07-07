@@ -404,7 +404,7 @@ remainingStmts :: ParsecT [Token] Memory IO ([Token])
 remainingStmts = 
                 (stmts) <|> (return [])
 
--------Print---------
+-- ---------------------------------Print----------------------------------
 
 printVar :: ParsecT [Token] Memory IO ([Token])
 printVar = do 
@@ -482,6 +482,22 @@ canExecute :: ParsecT [Token] Memory IO (Bool)
 canExecute = do
                 s <- getState
                 return (isRunning s && isBlockRunning s)
+
+forBlock :: ParsecT [Token] Memory IO ([Token])
+forBlock = do
+              a <- forToken
+              b <- openParToken
+              c <- assign
+              d <- semiColonToken
+              (expT, _) <- expression
+              f <- semiColonToken
+              (token, _) <- unaryExpression
+              h <- closeParToken
+              i <- openCurlyBracketsToken
+              j <- stmts
+              k <- closeCurlyBracketsToken
+              return ([a] ++ [b] ++ expT ++ [d] ++ c ++ [f] ++ token ++ [h] ++ [i] ++ j ++ [k])
+
 
 
 
