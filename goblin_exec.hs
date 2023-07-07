@@ -485,20 +485,23 @@ canExecute = do
 
 forBlock :: ParsecT [Token] Memory IO ([Token])
 forBlock = do
-              a <- forToken
-              b <- openParToken
-              c <- assign
-              d <- semiColonToken
-              (expT, _) <- expression
-              f <- semiColonToken
-              (token, _) <- binOp
-              h <- closeParToken
-              i <- openCurlyBracketsToken
-              j <- stmts
-              k <- closeCurlyBracketsToken
-              return ([a] ++ [b] ++ expT ++ [d] ++ c ++ [f] ++ token ++ [h] ++ [i] ++ j ++ [k])
+              a <- forExpression
+              b <- openCurlyBracketsToken
+              c <- stmts
+              d <- closeCurlyBracketsToken
+              return (a ++  [b] ++ c ++ [d])
 
-
+forExpression :: ParsecT [Token] Memory IO ([Token])
+forExpression = do
+                a <- forToken
+                b <- openParToken
+                c <- assign
+                d <- semiColonToken
+                (expT, _) <- expression
+                f <- semiColonToken
+                token <- assign
+                h <- closeParToken
+                return ([a] ++ [b] ++ expT ++ c ++ [d] ++ [f] ++ token ++ [h])
 
 
 assign :: ParsecT [Token] Memory IO ([Token])
