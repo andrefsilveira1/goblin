@@ -396,7 +396,7 @@ stmts = do
 
 stmt :: ParsecT [Token] Memory IO ([Token])
 stmt = do
-          a <- (assign <|> printVar <|> ifMainBlock)
+          a <- (assign <|> printVar <|> ifMainBlock <|> forBlock)
           b <- semiColonToken
           return (a ++ [b])
 
@@ -491,7 +491,7 @@ forBlock = do
               d <- semiColonToken
               (expT, _) <- expression
               f <- semiColonToken
-              (token, _) <- unaryExpression
+              (token, _) <- binOp
               h <- closeParToken
               i <- openCurlyBracketsToken
               j <- stmts
