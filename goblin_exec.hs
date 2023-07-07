@@ -426,8 +426,10 @@ ifMainBlock = do
                 s <- getState
                 when(isRunning s && not valor) (updateState(endBlockExecution))
                 a <- block
-                when(isRunning s && not valor) (updateState(beginBlockExecution))
-                b <- remainingIfblock
+                when(isRunning s) (
+                  if (not valor) then (updateState(beginBlockExecution))
+                  else (updateState(endBlockExecution)))
+                b <- remainingIfblock valor
                 updateState(beginBlockExecution)
                 return (a ++ b)
 
@@ -439,16 +441,18 @@ ifEvalue = (do
             d <- closeParToken
             return ([a] ++ [b] ++ c ++ [d], valor))
 
-remainingIfblock :: ParsecT [Token] Memory IO ([Token])
-remainingIfblock = try (
+remainingIfblock :: Bool -> ParsecT [Token] Memory IO ([Token])
+remainingIfblock prevValue = try (
                           do 
                           a <- elseToken
                           (b, (Boolean valor)) <- ifEvalue
                           s <- getState
                           when(isRunning s && not valor) (updateState(endBlockExecution))
                           c <- block
-                          when(isRunning s && not valor) (updateState(beginBlockExecution))
-                          d <- remainingIfblock
+                          when(isRunning s) (
+                            if(not valor && not prevValue) then (updateState(beginBlockExecution))
+                            else (updateState(endBlockExecution)))
+                          d <- remainingIfblock valor
                           return ([a] ++ b ++ c ++ d)
                         )
                      <|>
