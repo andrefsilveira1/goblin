@@ -6,6 +6,7 @@ vars:
 	num c;
 	num mult;
 	num problema;
+	num i;
 
 
 subprograms:
@@ -43,3 +44,8 @@ process:
 		x = 22;
 	};
 	print("Variável: ", x);
+	
+	for(x = 0; x < 5; x = x + 1) {
+		print("Chegou ao fim aqui ", x);
+		x = 0;
+	};

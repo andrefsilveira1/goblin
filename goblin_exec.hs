@@ -212,6 +212,10 @@ greaterToken = tokenPrim show update_pos get_token where
   get_token (Greater p) = Just (Greater p)
   get_token _    = Nothing
 
+forToken = tokenPrim show update_pos get_token where
+  get_token (For p) = Just (For p)
+  get_token _ = Nothing
+
 
 
 
@@ -392,7 +396,7 @@ stmts = do
 
 stmt :: ParsecT [Token] Memory IO ([Token])
 stmt = do
-          a <- (assign <|> printVar <|> ifMainBlock)
+          a <- (assign <|> printVar <|> ifMainBlock <|> forBlock)
           b <- semiColonToken
           return (a ++ [b])
 
@@ -400,7 +404,7 @@ remainingStmts :: ParsecT [Token] Memory IO ([Token])
 remainingStmts = 
                 (stmts) <|> (return [])
 
--------Print---------
+-- ---------------------------------Print----------------------------------
 
 printVar :: ParsecT [Token] Memory IO ([Token])
 printVar = do 
@@ -479,6 +483,26 @@ canExecute = do
                 s <- getState
                 return (isRunning s && isBlockRunning s)
 
+forBlock :: ParsecT [Token] Memory IO ([Token])
+forBlock = do
+              a <- forExpression
+              b <- openCurlyBracketsToken
+              c <- stmts
+              d <- closeCurlyBracketsToken
+              return (a ++  [b] ++ c ++ [d])
+
+forExpression :: ParsecT [Token] Memory IO ([Token])
+forExpression = do
+                a <- forToken
+                b <- openParToken
+                c <- assign
+                d <- semiColonToken
+                (expT, Boolean valor) <- binOp
+                -- Analisar valor para saber quando chamar recursivamente
+                f <- semiColonToken
+                token <- assign
+                h <- closeParToken
+                return ([a] ++ [b] ++ expT ++ c ++ [d] ++ [f] ++ token ++ [h])
 
 
 assign :: ParsecT [Token] Memory IO ([Token])
