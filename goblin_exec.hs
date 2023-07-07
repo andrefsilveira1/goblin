@@ -497,7 +497,8 @@ forExpression = do
                 b <- openParToken
                 c <- assign
                 d <- semiColonToken
-                (expT, _) <- expression
+                (expT, Boolean valor) <- binOp
+                -- Analisar valor para saber quando chamar recursivamente
                 f <- semiColonToken
                 token <- assign
                 h <- closeParToken
