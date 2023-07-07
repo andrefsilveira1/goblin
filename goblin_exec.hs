@@ -212,6 +212,10 @@ greaterToken = tokenPrim show update_pos get_token where
   get_token (Greater p) = Just (Greater p)
   get_token _    = Nothing
 
+forToken = tokenPrim show update_pos get_token where
+  get_token (For p) = Just (For p)
+  get_token _ = Nothing
+
 
 
 
