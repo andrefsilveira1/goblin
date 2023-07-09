@@ -242,9 +242,6 @@ subProgramBody = do
                     a <- openCurlyBracketsToken
                     b <- varsBlock
                     (c, returnValue) <- processBlock
---                    d <- returnToken
---                    (expT, expVal) <- expression
---                    e <- semiColonToken
                     d <- closeCurlyBracketsToken
                     return ([a] ++ b ++ c ++ [d], returnValue)
 
