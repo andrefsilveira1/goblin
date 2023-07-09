@@ -146,6 +146,11 @@ loopToken = tokenPrim show update_pos get_token where
   get_token (Loop p) = Just (Loop p)
   get_token _ = Nothing
 
+moduleToken :: ParsecT [Token] st IO (Token)
+moduleToken = tokenPrim show update_pos get_token where
+  get_token (Mod p) = Just (Mod p)
+  get_token _ = Nothing
+
 
 
 
