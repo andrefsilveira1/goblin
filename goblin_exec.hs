@@ -39,6 +39,21 @@ type Stack = [(Variables, Functions)]
 -- Nossa memória que será o user state no parsec
 type Memory = (Stack, Bool, Bool) -- stack de variáveis e funções e flag indicativa de execução
 
+type ComName = String
+type ComParams = [Token]
+type ComBody = [Token]
+
+type Command = (ComName, ComParams, ComBody)
+type Commands = [Command]
+
+
+getCommands :: Stack -> Command
+getCommands (t:_) = getCommandsFromStack t
+getCommands [] = []
+
+getCommandsFromStack :: (Variables, Commands) -> Commands
+getCommandsFromStack (_, com) = com
+
 
 getTopFuns :: Stack -> Functions
 getTopFuns (t:_) = getFunsFromStackCell t
@@ -391,24 +406,41 @@ block = do
 -- TODO: make it return possible values from statements
 loopBlock :: ParsecT [Token] Memory IO ([Token], Type)
 loopBlock = do
-              a <- loopExpression
+
+              (s, _, _) <- getState
+              let (_, _, funBody) = findFun funName (getTopFuns s)
+              inp <- getInput
+              setInput funBody
+              (_, v) <- subProgramBody
+              (a, valor) <- loopExpression
               b <- openCurlyBracketsToken
+
               (c, returnValue) <- stmts
               d <- closeCurlyBracketsToken
+              setInput inp
               return (a ++  [b] ++ c ++ [d], NoValue)
 
-loopExpression :: ParsecT [Token] Memory IO ([Token])
+loopExpression :: ParsecT [Token] Memory IO ([Token], Bool)
 loopExpression = do
                 a <- loopToken
                 b <- openParToken
                 (c, _) <- assign
                 d <- semiColonToken
                 (expT, Boolean valor) <- binOp
-                -- Analisar valor para saber quando chamar recursivamente
+                
                 f <- semiColonToken
                 (token, _) <- assign
                 h <- closeParToken
-                return ([a] ++ [b] ++ expT ++ c ++ [d] ++ [f] ++ token ++ [h])
+                return ([a] ++ [b] ++ expT ++ c ++ [d] ++ [f] ++ token ++ [h], valor)
+
+loopEvalue :: ParsecT [Token] Memory IO ([Token])
+loop valor = do
+          keepRunning <- valor
+          if (keepRunning) then
+            (inBlock <- stmts
+            loop)
+          else return []
+          inBlock <- loop
 
 
 returnStmt :: ParsecT [Token] Memory IO ([Token], Type)
