@@ -131,6 +131,10 @@ equivalentToken = tokenPrim show update_pos get_token where
   get_token (Equiv p) = Just (Equiv p)
   get_token _       = Nothing
 
+differentToken :: ParsecT [Token] st IO (Token)
+differentToken = tokenPrim show update_pos get_token where
+  get_token (Diff p) = Just (Diff p)
+  get_token _       = Nothing
 
 printToken :: ParsecT [Token] st IO (Token)
 printToken = tokenPrim show update_pos get_token where

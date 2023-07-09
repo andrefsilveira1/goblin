@@ -45,6 +45,7 @@ tokens :-
   "/"                                   { \p s -> Div (getLC p)}
   "%"                                   { \p s -> Mod (getLC p)}
   "=="                                  { \p s -> Equiv (getLC p)}
+  "!="                                  { \p s -> Diff (getLC p)}
   print                                 { \p s -> Print (getLC p)}
   \" .* \"                              { \p s -> StringLit s (getLC p)}
   $alpha [$alpha $digit \_ \']*         { \p s -> Id s  (getLC p)}
@@ -90,6 +91,7 @@ data Token =
   Div                  (Int, Int) |
   Mod                  (Int, Int) |
   Equiv                (Int, Int) |
+  Diff                 (Int, Int) |
   Print                (Int, Int) |
   Quote                (Int, Int) |
   Return               (Int, Int)

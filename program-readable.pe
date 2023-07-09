@@ -56,10 +56,10 @@ process:
 	
 	loop(x = 0; x < 5; x = x + 1) {
 		print("Chegou ao fim aqui ", x);
-		x = 20;
+		x = 2;
 	}
 
-	if(x == y) {
-		y = 1;
+	if(x != y) {
+		y = 111111;
 	} 
 	print("Chegou ao fim aqui ", y);
