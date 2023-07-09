@@ -13,7 +13,15 @@ import PrimitiveTokens
 -----------------------------Memory-----------------------------
 
 --type Digit = 0 | 1 | 2...| 9
-data Type = Numeric Int | Boolean Bool-- | NumericWithSpec ((Int, [Digit]), (Int, [Digit]))
+data Type = Numeric Int | Boolean Bool | NoValue -- | NumericWithSpec ((Int, [Digit]), (Int, [Digit]))
+instance Eq Type where
+    (Numeric _)  == (Numeric _) = True
+    (Boolean _) == (Boolean _) = True
+    NoValue == NoValue = True
+    _ == _ = False
+
+  
+
 type Variable = (String, Type) -- nome e tipo
 type Variables = [Variable] -- nome e tipo
 
@@ -65,19 +73,14 @@ endBlockExecution (stack, fe, _) = (stack, fe, False)
 
 
 
-
-
-
-
-
-
-
+---------- Printing Memory ------------
 printMem :: Memory -> IO ()
 printMem (stack, _, _) = print (printMemVars (getTopVars stack) ++ "FUNS: " ++ printMemFuns (getTopFuns stack))
 
 printMemVars :: Variables -> String
 printMemVars  [] = []
 printMemVars ((name, Numeric val):lv) = name ++ " " ++ show val ++ ", " ++ printMemVars lv
+printMemVars ((name, NoValue):lv) = name ++ " " ++ "erroooooo" ++ ", " ++ printMemVars lv
 
 
 printMemFuns :: Functions -> String
@@ -106,17 +109,23 @@ printVars (StringLit value _) tok = putStrLn (init(tail(value)) ++ auxPrint(tok)
 
 
 
--- parsers para os não-terminais  
+-------------------------------Parsers-------------------------------
 program :: ParsecT [Token] Memory IO ([Token]) -- Memory define o tipo do user state
 program = do
             a <- varsBlock
             b <- subprogramsBlock
             updateState(beginExecution)
-            c <- processBlock 
+            (c, _) <- processBlock
             eof
             return (a ++ b ++ c)
 
--- ------------------------------varsBlock---------------------------
+
+
+
+
+
+
+-------------------------------varsBlock-------------------------------
 
 varsBlock :: ParsecT [Token] Memory IO ([Token])
 varsBlock = (do 
@@ -156,6 +165,19 @@ numType =
           (numToken) <|> (numWithSpecificationToken)
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 -- ------------------------------subprogramsBlock---------------------------
 
 subprogramsBlock :: ParsecT [Token] Memory IO ([Token])
@@ -182,7 +204,6 @@ subProgram = do
                 d <- parametersList
                 e <- closeParToken
                 s <- getState
-                -- when (isRunning s) ()
                 (f, _) <- subProgramBody
                 updateState(popMemStack)
                 s <- getState
@@ -221,12 +242,17 @@ subProgramBody :: ParsecT [Token] Memory IO ([Token], Type)
 subProgramBody = do 
                     a <- openCurlyBracketsToken
                     b <- varsBlock
-                    c <- processBlock
-                    d <- returnToken
-                    (expT, expVal) <- expression
-                    e <- semiColonToken
-                    f <- closeCurlyBracketsToken
-                    return ([a] ++ b ++ c ++ [d] ++ expT ++ [e] ++ [f], expVal)
+                    (c, returnValue) <- processBlock
+--                    d <- returnToken
+--                    (expT, expVal) <- expression
+--                    e <- semiColonToken
+                    d <- closeCurlyBracketsToken
+                    return ([a] ++ b ++ c ++ [d], returnValue)
+
+
+
+
+
 
 
 
@@ -237,34 +263,63 @@ subProgramBody = do
 
 -- ------------------------------processBlock---------------------------
 
-processBlock :: ParsecT [Token] Memory IO ([Token])
+processBlock :: ParsecT [Token] Memory IO ([Token], Type)
 processBlock = do 
                   a <- processBlockToken
                   b <- colonToken
-                  c <- stmts
-                  return ([a] ++ [b] ++ c)
+                  (c, returnValue) <- stmts
+                  return ([a] ++ [b] ++ c, returnValue)
 
 
-stmts :: ParsecT [Token] Memory IO ([Token])
+stmts :: ParsecT [Token] Memory IO ([Token], Type)
 stmts = do
-          first <- stmt
-          next <- remainingStmts
-          return (first ++ next)
+          (a, rv1) <- stmt
+          (b, rv2) <- remainingStmts
+          let returnValue = if (rv1 == NoValue) then rv2 else rv1
+          return (a ++ b, returnValue)
 
 
-stmt :: ParsecT [Token] Memory IO ([Token])
-stmt = do
-          a <- (assign <|> printVar <|> ifMainBlock <|> forBlock)
-          b <- semiColonToken
-          return (a ++ [b])
+stmt :: ParsecT [Token] Memory IO ([Token], Type)
+stmt = singleLineStmt <|> blockStmt
 
-remainingStmts :: ParsecT [Token] Memory IO ([Token])
-remainingStmts = 
-                (stmts) <|> (return [])
+singleLineStmt :: ParsecT [Token] Memory IO ([Token], Type)
+singleLineStmt = do
+                    (a, returnValue) <- (assign <|> printVar <|> returnStmt)
+                    b <- semiColonToken
+                    return (a ++ [b], returnValue)
+
+blockStmt :: ParsecT [Token] Memory IO ([Token], Type)
+blockStmt = ifMainBlock <|> forBlock
+
+remainingStmts :: ParsecT [Token] Memory IO ([Token], Type)
+remainingStmts = (stmts) <|> (return ([], NoValue))
+
+assign :: ParsecT [Token] Memory IO ([Token], Type)
+assign = do
+          a <- idToken
+          b <- equalsToken
+          (expT, expVal) <- expression
+          ce <- canExecute
+          when (ce) (updateState(symtableUpdate a expVal))
+          e <- getState
+          liftIO (printMem e)
+          return ([a] ++ [b] ++ expT, NoValue)
+
+
+expression :: ParsecT [Token] Memory IO ([Token], Type)
+expression = try binOp <|> unaryExpression
+
+unaryExpression :: ParsecT [Token] Memory IO ([Token], Type)
+unaryExpression = do
+                    a <- op
+                    (tok, val) <- intLit
+                    let valWithSign = evalSign a val
+                    return ([a] ++ tok, valWithSign)
 
 
 
-printVar :: ParsecT [Token] Memory IO ([Token])
+
+printVar :: ParsecT [Token] Memory IO ([Token], Type)
 printVar = do 
                 a <- printToken
                 b <- openParToken
@@ -273,23 +328,23 @@ printVar = do
                 (expT, expVal) <- expression
                 g <- closeParToken
                 liftIO (printVars string expVal)
-                return ([a] ++ [b] ++ [string] ++  [comma] ++ expT ++ [g])
+                return ([a] ++ [b] ++ [string] ++  [comma] ++ expT ++ [g], NoValue)
 
 
 
-
-ifMainBlock :: ParsecT [Token] Memory IO ([Token])
+ifMainBlock :: ParsecT [Token] Memory IO ([Token], Type)
 ifMainBlock = do
-                (_, (Boolean valor)) <- ifEvalue
+                (a, (Boolean valor)) <- ifEvalue
                 s <- getState
                 when(isRunning s && not valor) (updateState(endBlockExecution))
-                a <- block
+                (b, rv1) <- block
                 when(isRunning s) (
                   if (not valor) then (updateState(beginBlockExecution))
                   else (updateState(endBlockExecution)))
-                b <- remainingIfblock valor
+                (c, rv2) <- remainingIfblock valor
                 updateState(beginBlockExecution)
-                return (a ++ b)
+                let returnValue = if valor then rv1 else rv2
+                return (a ++ b ++ c, returnValue)
 
 ifEvalue :: ParsecT [Token] Memory IO ([Token], Type)
 ifEvalue = (do
@@ -299,81 +354,68 @@ ifEvalue = (do
             d <- closeParToken
             return ([a] ++ [b] ++ c ++ [d], valor))
 
-remainingIfblock :: Bool -> ParsecT [Token] Memory IO ([Token])
+remainingIfblock :: Bool -> ParsecT [Token] Memory IO ([Token], Type)
 remainingIfblock prevValue = try (
                           do 
                           a <- elseToken
                           (b, (Boolean valor)) <- ifEvalue
                           s <- getState
                           when(isRunning s && not valor) (updateState(endBlockExecution))
-                          c <- block
+                          (c, rv1) <- block
                           when(isRunning s) (
                             if(not valor && not prevValue) then (updateState(beginBlockExecution))
                             else (updateState(endBlockExecution)))
-                          d <- remainingIfblock valor
-                          return ([a] ++ b ++ c ++ d)
+                          (d, rv2)<- remainingIfblock valor
+                          let returnValue = if valor then rv1 else rv2
+                          return ([a] ++ b ++ c ++ d, returnValue)
                         )
                      <|>
                         (
                           do
                           a <- elseToken
-                          b <- block
-                          return ([a] ++ b)
+                          (b, returnValue) <- block
+                          return ([a] ++ b, returnValue)
                         )
-                     <|> return ([]) 
+                     <|> return ([], NoValue)
 
 
-block :: ParsecT [Token] Memory IO ([Token])
+-- TODO: make it return possible values from statements
+block :: ParsecT [Token] Memory IO ([Token], Type)
 block = do
             e <- openCurlyBracketsToken
-            f <- stmts
+            (f, returnValue) <- stmts
             g <- closeCurlyBracketsToken
-            return ([e] ++ f ++ [g])
+            return ([e] ++ f ++ [g], returnValue)
 
 
-forBlock :: ParsecT [Token] Memory IO ([Token])
+-- TODO: make it return possible values from statements
+forBlock :: ParsecT [Token] Memory IO ([Token], Type)
 forBlock = do
               a <- forExpression
               b <- openCurlyBracketsToken
-              c <- stmts
+              (c, returnValue) <- stmts
               d <- closeCurlyBracketsToken
-              return (a ++  [b] ++ c ++ [d])
+              return (a ++  [b] ++ c ++ [d], NoValue)
 
 forExpression :: ParsecT [Token] Memory IO ([Token])
 forExpression = do
                 a <- forToken
                 b <- openParToken
-                c <- assign
+                (c, _) <- assign
                 d <- semiColonToken
                 (expT, Boolean valor) <- binOp
                 -- Analisar valor para saber quando chamar recursivamente
                 f <- semiColonToken
-                token <- assign
+                (token, _) <- assign
                 h <- closeParToken
                 return ([a] ++ [b] ++ expT ++ c ++ [d] ++ [f] ++ token ++ [h])
 
 
-assign :: ParsecT [Token] Memory IO ([Token])
-assign = do
-          a <- idToken
-          b <- equalsToken
-          (expT, expVal) <- expression
-          ce <- canExecute
-          when (ce) (updateState(symtableUpdate a expVal))
-          e <- getState
-          liftIO (printMem e)
-          return ([a] ++ [b] ++ expT)
-
-
-expression :: ParsecT [Token] Memory IO ([Token], Type)
-expression = try binOp <|> unaryExpression
-
-unaryExpression :: ParsecT [Token] Memory IO ([Token], Type)
-unaryExpression = do 
-                    a <- op
-                    (tok, val) <- intLit
-                    let valWithSign = evalSign a val
-                    return ([a] ++ tok, valWithSign)
+returnStmt :: ParsecT [Token] Memory IO ([Token], Type)
+returnStmt = do
+                a <- returnToken
+                (b, expVal) <- expression
+                return ([a] ++ b, expVal)
 
 
 
