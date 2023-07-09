@@ -111,6 +111,31 @@ divToken = tokenPrim show update_pos get_token where
   get_token (Div p) = Just (Div p)
   get_token _   = Nothing
 
+moduleToken :: ParsecT [Token] st IO (Token)
+moduleToken = tokenPrim show update_pos get_token where
+  get_token (Mod p) = Just (Mod p)
+  get_token _ = Nothing
+
+lessToken :: ParsecT [Token] st IO (Token)
+lessToken = tokenPrim show update_pos get_token where
+  get_token (Less p) = Just (Less p)
+  get_token _    = Nothing
+
+greaterToken :: ParsecT [Token] st IO (Token)
+greaterToken = tokenPrim show update_pos get_token where
+  get_token (Greater p) = Just (Greater p)
+  get_token _       = Nothing
+
+equivalentToken :: ParsecT [Token] st IO (Token)
+equivalentToken = tokenPrim show update_pos get_token where
+  get_token (Equiv p) = Just (Equiv p)
+  get_token _       = Nothing
+
+differentToken :: ParsecT [Token] st IO (Token)
+differentToken = tokenPrim show update_pos get_token where
+  get_token (Diff p) = Just (Diff p)
+  get_token _       = Nothing
+
 printToken :: ParsecT [Token] st IO (Token)
 printToken = tokenPrim show update_pos get_token where
   get_token (Print p) = Just (Print p)
@@ -131,20 +156,12 @@ elseToken = tokenPrim show update_pos get_token where
   get_token (Else p) = Just (Else p)
   get_token _ = Nothing
 
-lessToken :: ParsecT [Token] st IO (Token)
-lessToken = tokenPrim show update_pos get_token where
-  get_token (Less p) = Just (Less p)
-  get_token _    = Nothing
 
-greaterToken :: ParsecT [Token] st IO (Token)
-greaterToken = tokenPrim show update_pos get_token where
-  get_token (Greater p) = Just (Greater p)
-  get_token _    = Nothing
-
-forToken :: ParsecT [Token] st IO (Token)
-forToken = tokenPrim show update_pos get_token where
-  get_token (For p) = Just (For p)
+loopToken :: ParsecT [Token] st IO (Token)
+loopToken = tokenPrim show update_pos get_token where
+  get_token (Loop p) = Just (Loop p)
   get_token _ = Nothing
+
 
 
 

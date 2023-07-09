@@ -39,7 +39,6 @@ type Stack = [(Variables, Functions)]
 -- Nossa memória que será o user state no parsec
 type Memory = (Stack, Bool, Bool) -- stack de variáveis e funções e flag indicativa de execução
 
-
 getTopFuns :: Stack -> Functions
 getTopFuns (t:_) = getFunsFromStackCell t
 getTopFuns [] = []
@@ -289,7 +288,7 @@ singleLineStmt = do
                     return (a ++ [b], returnValue)
 
 blockStmt :: ParsecT [Token] Memory IO ([Token], Type)
-blockStmt = ifMainBlock <|> forBlock
+blockStmt = ifMainBlock <|> loopBlock
 
 remainingStmts :: ParsecT [Token] Memory IO ([Token], Type)
 remainingStmts = (stmts) <|> (return ([], NoValue))
@@ -389,35 +388,36 @@ block = do
 
 
 -- TODO: make it return possible values from statements
-forBlock :: ParsecT [Token] Memory IO ([Token], Type)
-forBlock = do
-              a <- forExpression
+loopBlock :: ParsecT [Token] Memory IO ([Token], Type)
+loopBlock = do
+              start <- getInput
+              (a, tokens, valor) <- loopExpression
               b <- openCurlyBracketsToken
               (c, returnValue) <- stmts
               d <- closeCurlyBracketsToken
-              return (a ++  [b] ++ c ++ [d], NoValue)
+              when(not valor) (do
+                setInput start
+                _ <- loopBlock 
+                return ())
+              return ([a] ++ tokens ++ [b] ++ c ++ [d], NoValue)
 
-forExpression :: ParsecT [Token] Memory IO ([Token])
-forExpression = do
-                a <- forToken
+loopExpression :: ParsecT [Token] Memory IO (Token, [Token], Bool)
+loopExpression = do
+                a <- loopToken
                 b <- openParToken
                 (c, _) <- assign
                 d <- semiColonToken
                 (expT, Boolean valor) <- binOp
-                -- Analisar valor para saber quando chamar recursivamente
                 f <- semiColonToken
                 (token, _) <- assign
                 h <- closeParToken
-                return ([a] ++ [b] ++ expT ++ c ++ [d] ++ [f] ++ token ++ [h])
-
+                return (a, [b] ++ expT ++ c ++ [d] ++ [f] ++ token ++ [h], valor)
 
 returnStmt :: ParsecT [Token] Memory IO ([Token], Type)
 returnStmt = do
                 a <- returnToken
                 (b, expVal) <- expression
                 return ([a] ++ b, expVal)
-
-
 
 
 --- funções considerando associatividade à esquerda 
@@ -447,7 +447,7 @@ intLit = do
             return ([(Int v p)], Numeric v)
 
 op :: ParsecT [Token] Memory IO (Token)
-op = powToken <|> multToken <|> divToken <|> addToken <|> subToken <|> lessToken <|> greaterToken
+op = powToken <|> multToken <|> divToken <|> addToken <|> subToken <|> lessToken <|> greaterToken <|> moduleToken <|> equivalentToken <|> differentToken
 
 varId :: ParsecT [Token] Memory IO ([Token], Type)
 varId = do 
@@ -512,6 +512,9 @@ evalOp (Numeric x) (Add _) (Numeric y) = Numeric (x + y)
 evalOp (Numeric x) (Sub _) (Numeric y) = Numeric (x - y)
 evalOp (Numeric x) (Greater _) (Numeric y) = Boolean (x > y)
 evalOp (Numeric x) (Less _) (Numeric y) = Boolean (x < y)
+evalOp (Numeric x) (Mod _) (Numeric y) = Numeric (x `mod` y)
+evalOp (Numeric x) (Equiv _) (Numeric y) = Boolean (x == y)
+evalOp (Numeric x) (Diff _) (Numeric y) = Boolean (x /= y)
 
 -- [(x, 10), (y, 15)]
 -- [([ (x, Numeric 10), (y, Numeric 15) ], [_])]
@@ -548,6 +551,7 @@ evalVarAux (Id x p) ((name, Numeric v):lv) =
 findFun :: String -> Functions -> Function
 findFun name ((n, params, body):lf) = if name == n then (n, params, body)
                                            else findFun name lf
+
 
 addParametersToMemory :: Token -> [Token] -> Memory -> Memory
 addParametersToMemory (Id name _) args ((vars, funs):lm , ir, irb) = addParametersToMemoryAux args params ((vars, funs):lm , ir, irb)

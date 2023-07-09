@@ -18,7 +18,7 @@ tokens :-
   int                                   { \p s -> Type s (getLC p)}
   if                                    { \p s -> If (getLC p)}
   "else"                                { \p s -> Else (getLC p)}
-  "for"                                 { \p s -> For (getLC p)}
+  "loop"                                { \p s -> Loop (getLC p)}
   then                                  { \p s -> Then (getLC p)}
   write                                 { \p s -> Write (getLC p)}
   >                                     { \p s -> Greater (getLC p)}
@@ -43,6 +43,9 @@ tokens :-
   "-"                                   { \p s -> Sub (getLC p)}
   "^"                                   { \p s -> Pow (getLC p)}
   "/"                                   { \p s -> Div (getLC p)}
+  "%"                                   { \p s -> Mod (getLC p)}
+  "=="                                  { \p s -> Equiv (getLC p)}
+  "!="                                  { \p s -> Diff (getLC p)}
   print                                 { \p s -> Print (getLC p)}
   \" .* \"                              { \p s -> StringLit s (getLC p)}
   $alpha [$alpha $digit \_ \']*         { \p s -> Id s  (getLC p)}
@@ -60,7 +63,7 @@ data Token =
   Type     String      (Int, Int) |
   If                   (Int, Int) |
   Else                 (Int, Int) |
-  For                  (Int, Int) |
+  Loop                 (Int, Int) |
   Then                 (Int, Int) |
   Write                (Int, Int) |
   Greater              (Int, Int) |
@@ -86,6 +89,9 @@ data Token =
   Mult                 (Int, Int) |
   Pow                  (Int, Int) |
   Div                  (Int, Int) |
+  Mod                  (Int, Int) |
+  Equiv                (Int, Int) |
+  Diff                 (Int, Int) |
   Print                (Int, Int) |
   Quote                (Int, Int) |
   Return               (Int, Int)
