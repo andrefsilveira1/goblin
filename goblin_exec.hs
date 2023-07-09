@@ -387,28 +387,41 @@ block = do
 -- TODO: make it return possible values from statements
 loopBlock :: ParsecT [Token] Memory IO ([Token], Type)
 loopBlock = do
-              start <- getInput
-              (a, tokens, valor) <- loopExpression
-              b <- openCurlyBracketsToken
-              (c, returnValue) <- stmts
-              d <- closeCurlyBracketsToken
-              when(not valor) (do
-                setInput start
-                _ <- loopBlock 
-                return ())
-              return ([a] ++ tokens ++ [b] ++ c ++ [d], NoValue)
+              a <- loopInitializer
+              (b, returnValue) <- loopUnit
+              return (a ++ b, NoValue)
 
-loopExpression :: ParsecT [Token] Memory IO (Token, [Token], Bool)
+loopInitializer :: ParsecT [Token] Memory IO ([Token])
+loopInitializer = do
+                      a <- loopToken
+                      b <- openParToken
+                      (c, _) <- assign
+                      d <- semiColonToken
+                      return ([a] ++ [b] ++ c ++ [d])
+
+-- TODO: make it return possible values from statements
+loopUnit :: ParsecT [Token] Memory IO ([Token], Type)
+loopUnit = do
+                start <- getInput
+                (a, loopCondition) <- loopExpression
+                b <- openCurlyBracketsToken
+                (c, returnValue) <- stmts
+                d <- closeCurlyBracketsToken
+                when(loopCondition) (do
+                  setInput start
+                  _ <- loopUnit
+                  return ())
+                return (a ++ [b] ++ c ++ [d], NoValue)
+
+
+loopExpression :: ParsecT [Token] Memory IO ([Token], Bool)
 loopExpression = do
-                a <- loopToken
-                b <- openParToken
+                (a, Boolean loopCondition) <- binOp
+                b <- semiColonToken
                 (c, _) <- assign
                 d <- semiColonToken
-                (expT, Boolean valor) <- binOp
-                f <- semiColonToken
-                (token, _) <- assign
-                h <- closeParToken
-                return (a, [b] ++ expT ++ c ++ [d] ++ [f] ++ token ++ [h], valor)
+                e <- closeParToken
+                return (a ++ [b] ++ c ++ [d] ++ [e], loopCondition)
 
 returnStmt :: ParsecT [Token] Memory IO ([Token], Type)
 returnStmt = do

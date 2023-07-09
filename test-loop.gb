@@ -2,11 +2,11 @@ vars:
 
 	num x;
 
+
 process:
 
-	print("Variável: ", x);
+	//print("Variável: ", x);
 	
-	loop(x = 0; x < 5; x = x + 1) {
+	loop(x = 0; x < 5; x = x + 1;) {
 		print("Chegou ao fim aqui ", x);
-		x = 2;
 	}
