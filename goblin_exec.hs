@@ -447,7 +447,7 @@ intLit = do
             return ([(Int v p)], Numeric v)
 
 op :: ParsecT [Token] Memory IO (Token)
-op = powToken <|> multToken <|> divToken <|> addToken <|> subToken <|> lessToken <|> greaterToken
+op = powToken <|> multToken <|> divToken <|> addToken <|> subToken <|> lessToken <|> greaterToken <|> moduleToken
 
 varId :: ParsecT [Token] Memory IO ([Token], Type)
 varId = do 
@@ -512,6 +512,7 @@ evalOp (Numeric x) (Add _) (Numeric y) = Numeric (x + y)
 evalOp (Numeric x) (Sub _) (Numeric y) = Numeric (x - y)
 evalOp (Numeric x) (Greater _) (Numeric y) = Boolean (x > y)
 evalOp (Numeric x) (Less _) (Numeric y) = Boolean (x < y)
+evalOp (Numeric x) (Mod _) (Numeric y) = Numeric (x `mod` y)
 
 -- [(x, 10), (y, 15)]
 -- [([ (x, Numeric 10), (y, Numeric 15) ], [_])]

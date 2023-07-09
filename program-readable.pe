@@ -35,9 +35,9 @@ process:
 	mult = mult - 2;
 	mult = mult ^ 2;
 	problema = 1 + 3 * 2;
-
 	print("Problema ", problema);
-
+	problema = problema % 7;
+	print("Modulo: ", problema);
 	problema = x ^ 2;
 	problema = problema / 9;
 	y = 20;
