@@ -414,16 +414,16 @@ loopBlock = do
 
 loopExpression :: ParsecT [Token] Memory IO ([Token], Bool)
 loopExpression = do
-                (Id comName p) <- loopToken
+                a <- loopToken
                 b <- openParToken
                 (c, _) <- assign
                 d <- semiColonToken
                 (expT, Boolean valor) <- binOp
                 updateState(pushMemStack)
-                updateState(addParametersToMemory (Id comName p) c)
+                -- updateState(addCommandToMemory a (c ++ [d] ++ expT))
 
                 (s, _, _) <- getState
-                let (_, _, comBody) = findCom comName (getCommands s)
+                let (_, _, comBody) = findCom (show a) (getCommands s)
                 inp <- getInput
                 setInput comBody
                 setInput inp
@@ -432,7 +432,7 @@ loopExpression = do
                 f <- semiColonToken
                 (token, _) <- assign
                 h <- closeParToken
-                return ([(Id comName p)] ++ [b] ++ expT ++ c ++ [d] ++ [f] ++ token ++ [h], valor)
+                return ([a] ++ [b] ++ expT ++ c ++ [d] ++ [f] ++ token ++ [h], valor)
 
 returnStmt :: ParsecT [Token] Memory IO ([Token], Type)
 returnStmt = do
@@ -575,6 +575,10 @@ findFun name ((n, params, body):lf) = if name == n then (n, params, body)
 findCom :: String -> Commands -> Command
 findCom name ((nt, params, body): lf) = if name == nt then (nt, params, body)
                                         else findCom name lf
+
+addCommandToMemory :: Token -> [Token] -> Memory -> Memory
+addCommandToMemory (Id name _) args ((vars, funs):lm , ir, irb) = addParametersToMemoryAux args params ((vars, funs):lm , ir, irb)
+    where (_, params, _) = findCom name funs
 
 addParametersToMemory :: Token -> [Token] -> Memory -> Memory
 addParametersToMemory (Id name _) args ((vars, funs):lm , ir, irb) = addParametersToMemoryAux args params ((vars, funs):lm , ir, irb)
