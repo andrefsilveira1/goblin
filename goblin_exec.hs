@@ -47,7 +47,7 @@ type Command = (ComName, ComParams, ComBody)
 type Commands = [Command]
 
 
-getCommands :: Stack -> Command
+getCommands :: Stack -> Commands
 getCommands (t:_) = getCommandsFromStack t
 getCommands [] = []
 
@@ -406,32 +406,24 @@ block = do
 -- TODO: make it return possible values from statements
 loopBlock :: ParsecT [Token] Memory IO ([Token], Type)
 loopBlock = do
-
-              (s, _, _) <- getState
-              let (_, _, funBody) = findFun funName (getTopFuns s)
-              inp <- getInput
-              setInput funBody
-              (_, v) <- subProgramBody
               (a, valor) <- loopExpression
               b <- openCurlyBracketsToken
-
               (c, returnValue) <- stmts
               d <- closeCurlyBracketsToken
-              setInput inp
               return (a ++  [b] ++ c ++ [d], NoValue)
 
 loopExpression :: ParsecT [Token] Memory IO ([Token], Bool)
 loopExpression = do
-                (Loop ComName p) <- loopToken
+                (Id comName p) <- loopToken
                 b <- openParToken
                 (c, _) <- assign
                 d <- semiColonToken
                 (expT, Boolean valor) <- binOp
                 updateState(pushMemStack)
-                updateState(addParametersToMemory (Id ComName p) c)
+                updateState(addParametersToMemory (Id comName p) c)
 
                 (s, _, _) <- getState
-                let (_, _, comBody) = findCom ComName (getCommands s)
+                let (_, _, comBody) = findCom comName (getCommands s)
                 inp <- getInput
                 setInput comBody
                 setInput inp
@@ -440,17 +432,7 @@ loopExpression = do
                 f <- semiColonToken
                 (token, _) <- assign
                 h <- closeParToken
-                return ([a] ++ [b] ++ expT ++ c ++ [d] ++ [f] ++ token ++ [h], valor)
-
-loopEvalue :: ParsecT [Token] Memory IO ([Token])
-loop valor = do
-          keepRunning <- valor
-          if (keepRunning) then
-            (inBlock <- stmts
-            loop)
-          else return []
-          inBlock <- loop
-
+                return ([(Id comName p)] ++ [b] ++ expT ++ c ++ [d] ++ [f] ++ token ++ [h], valor)
 
 returnStmt :: ParsecT [Token] Memory IO ([Token], Type)
 returnStmt = do

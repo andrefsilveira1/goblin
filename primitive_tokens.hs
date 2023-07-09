@@ -143,7 +143,7 @@ greaterToken = tokenPrim show update_pos get_token where
 
 loopToken :: ParsecT [Token] st IO (Token)
 loopToken = tokenPrim show update_pos get_token where
-  get_token (Loop x p) = Just (Loop x p)
+  get_token (Loop p) = Just (Loop p)
   get_token _ = Nothing
 
 
