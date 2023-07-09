@@ -39,22 +39,6 @@ type Stack = [(Variables, Functions)]
 -- Nossa memória que será o user state no parsec
 type Memory = (Stack, Bool, Bool) -- stack de variáveis e funções e flag indicativa de execução
 
-type ComName = String
-type ComParams = [Token]
-type ComBody = [Token]
-
-type Command = (ComName, ComParams, ComBody)
-type Commands = [Command]
-
-
-getCommands :: Stack -> Commands
-getCommands (t:_) = getCommandsFromStack t
-getCommands [] = []
-
-getCommandsFromStack :: (Variables, Commands) -> Commands
-getCommandsFromStack (_, com) = com
-
-
 getTopFuns :: Stack -> Functions
 getTopFuns (t:_) = getFunsFromStackCell t
 getTopFuns [] = []
@@ -406,41 +390,29 @@ block = do
 -- TODO: make it return possible values from statements
 loopBlock :: ParsecT [Token] Memory IO ([Token], Type)
 loopBlock = do
-              (a, valor) <- loopExpression
+              (a, tokens, valor) <- loopExpression
               b <- openCurlyBracketsToken
               (c, returnValue) <- stmts
               d <- closeCurlyBracketsToken
-              return (a ++  [b] ++ c ++ [d], NoValue)
+              return ([a] ++ tokens ++ [b] ++ c ++ [d], NoValue)
 
-loopExpression :: ParsecT [Token] Memory IO ([Token], Bool)
+loopExpression :: ParsecT [Token] Memory IO (Token, [Token], Bool)
 loopExpression = do
                 a <- loopToken
                 b <- openParToken
                 (c, _) <- assign
                 d <- semiColonToken
                 (expT, Boolean valor) <- binOp
-                updateState(pushMemStack)
-                -- updateState(addCommandToMemory a (c ++ [d] ++ expT))
-
-                (s, _, _) <- getState
-                let (_, _, comBody) = findCom (show a) (getCommands s)
-                inp <- getInput
-                setInput comBody
-                setInput inp
-
-                updateState(popMemStack)
                 f <- semiColonToken
                 (token, _) <- assign
                 h <- closeParToken
-                return ([a] ++ [b] ++ expT ++ c ++ [d] ++ [f] ++ token ++ [h], valor)
+                return (a, [b] ++ expT ++ c ++ [d] ++ [f] ++ token ++ [h], valor)
 
 returnStmt :: ParsecT [Token] Memory IO ([Token], Type)
 returnStmt = do
                 a <- returnToken
                 (b, expVal) <- expression
                 return ([a] ++ b, expVal)
-
-
 
 
 --- funções considerando associatividade à esquerda 
@@ -572,13 +544,6 @@ findFun :: String -> Functions -> Function
 findFun name ((n, params, body):lf) = if name == n then (n, params, body)
                                            else findFun name lf
 
-findCom :: String -> Commands -> Command
-findCom name ((nt, params, body): lf) = if name == nt then (nt, params, body)
-                                        else findCom name lf
-
-addCommandToMemory :: Token -> [Token] -> Memory -> Memory
-addCommandToMemory (Id name _) args ((vars, funs):lm , ir, irb) = addParametersToMemoryAux args params ((vars, funs):lm , ir, irb)
-    where (_, params, _) = findCom name funs
 
 addParametersToMemory :: Token -> [Token] -> Memory -> Memory
 addParametersToMemory (Id name _) args ((vars, funs):lm , ir, irb) = addParametersToMemoryAux args params ((vars, funs):lm , ir, irb)
