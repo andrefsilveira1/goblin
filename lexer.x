@@ -18,7 +18,7 @@ tokens :-
   int                                   { \p s -> Type s (getLC p)}
   if                                    { \p s -> If (getLC p)}
   "else"                                { \p s -> Else (getLC p)}
-  "for"                                 { \p s -> For (getLC p)}
+  "loop"                                { \p s -> Loop (getLC p)}
   then                                  { \p s -> Then (getLC p)}
   write                                 { \p s -> Write (getLC p)}
   >                                     { \p s -> Greater (getLC p)}
@@ -60,7 +60,7 @@ data Token =
   Type     String      (Int, Int) |
   If                   (Int, Int) |
   Else                 (Int, Int) |
-  For                  (Int, Int) |
+  Loop                 (Int, Int) |
   Then                 (Int, Int) |
   Write                (Int, Int) |
   Greater              (Int, Int) |

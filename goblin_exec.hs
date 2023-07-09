@@ -289,7 +289,7 @@ singleLineStmt = do
                     return (a ++ [b], returnValue)
 
 blockStmt :: ParsecT [Token] Memory IO ([Token], Type)
-blockStmt = ifMainBlock <|> forBlock
+blockStmt = ifMainBlock <|> loopBlock
 
 remainingStmts :: ParsecT [Token] Memory IO ([Token], Type)
 remainingStmts = (stmts) <|> (return ([], NoValue))
@@ -389,17 +389,17 @@ block = do
 
 
 -- TODO: make it return possible values from statements
-forBlock :: ParsecT [Token] Memory IO ([Token], Type)
-forBlock = do
-              a <- forExpression
+loopBlock :: ParsecT [Token] Memory IO ([Token], Type)
+loopBlock = do
+              a <- loopExpression
               b <- openCurlyBracketsToken
               (c, returnValue) <- stmts
               d <- closeCurlyBracketsToken
               return (a ++  [b] ++ c ++ [d], NoValue)
 
-forExpression :: ParsecT [Token] Memory IO ([Token])
-forExpression = do
-                a <- forToken
+loopExpression :: ParsecT [Token] Memory IO ([Token])
+loopExpression = do
+                a <- loopToken
                 b <- openParToken
                 (c, _) <- assign
                 d <- semiColonToken

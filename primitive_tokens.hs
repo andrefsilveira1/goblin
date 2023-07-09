@@ -141,9 +141,9 @@ greaterToken = tokenPrim show update_pos get_token where
   get_token (Greater p) = Just (Greater p)
   get_token _    = Nothing
 
-forToken :: ParsecT [Token] st IO (Token)
-forToken = tokenPrim show update_pos get_token where
-  get_token (For p) = Just (For p)
+loopToken :: ParsecT [Token] st IO (Token)
+loopToken = tokenPrim show update_pos get_token where
+  get_token (Loop p) = Just (Loop p)
   get_token _ = Nothing
 
 
