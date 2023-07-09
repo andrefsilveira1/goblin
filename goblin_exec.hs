@@ -422,12 +422,21 @@ loopBlock = do
 
 loopExpression :: ParsecT [Token] Memory IO ([Token], Bool)
 loopExpression = do
-                a <- loopToken
+                (Loop ComName p) <- loopToken
                 b <- openParToken
                 (c, _) <- assign
                 d <- semiColonToken
                 (expT, Boolean valor) <- binOp
-                
+                updateState(pushMemStack)
+                updateState(addParametersToMemory (Id ComName p) c)
+
+                (s, _, _) <- getState
+                let (_, _, comBody) = findCom ComName (getCommands s)
+                inp <- getInput
+                setInput comBody
+                setInput inp
+
+                updateState(popMemStack)
                 f <- semiColonToken
                 (token, _) <- assign
                 h <- closeParToken
@@ -580,6 +589,10 @@ evalVarAux (Id x p) ((name, Numeric v):lv) =
 findFun :: String -> Functions -> Function
 findFun name ((n, params, body):lf) = if name == n then (n, params, body)
                                            else findFun name lf
+
+findCom :: String -> Commands -> Command
+findCom name ((nt, params, body): lf) = if name == nt then (nt, params, body)
+                                        else findCom name lf
 
 addParametersToMemory :: Token -> [Token] -> Memory -> Memory
 addParametersToMemory (Id name _) args ((vars, funs):lm , ir, irb) = addParametersToMemoryAux args params ((vars, funs):lm , ir, irb)
