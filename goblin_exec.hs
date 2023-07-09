@@ -1,18 +1,27 @@
 module Main (main) where
 
-import Lexer
-import Text.Parsec
 import Control.Monad.IO.Class
 import Control.Monad
-
 
 import System.IO.Unsafe
 import System.Environment
 
+import Lexer
+import Text.Parsec
+import PrimitiveTokens
 
+-----------------------------Memory-----------------------------
 
 --type Digit = 0 | 1 | 2...| 9
-data Type = Numeric Int | Boolean Bool-- | NumericWithSpec ((Int, [Digit]), (Int, [Digit]))
+data Type = Numeric Int | Boolean Bool | NoValue -- | NumericWithSpec ((Int, [Digit]), (Int, [Digit]))
+instance Eq Type where
+    (Numeric _)  == (Numeric _) = True
+    (Boolean _) == (Boolean _) = True
+    NoValue == NoValue = True
+    _ == _ = False
+
+  
+
 type Variable = (String, Type) -- nome e tipo
 type Variables = [Variable] -- nome e tipo
 
@@ -64,19 +73,14 @@ endBlockExecution (stack, fe, _) = (stack, fe, False)
 
 
 
-
-
-
-
-
-
-
+---------- Printing Memory ------------
 printMem :: Memory -> IO ()
 printMem (stack, _, _) = print (printMemVars (getTopVars stack) ++ "FUNS: " ++ printMemFuns (getTopFuns stack))
 
 printMemVars :: Variables -> String
 printMemVars  [] = []
 printMemVars ((name, Numeric val):lv) = name ++ " " ++ show val ++ ", " ++ printMemVars lv
+printMemVars ((name, NoValue):lv) = name ++ " " ++ "erroooooo" ++ ", " ++ printMemVars lv
 
 
 printMemFuns :: Functions -> String
@@ -100,165 +104,28 @@ printVars (StringLit value _) tok = putStrLn (init(tail(value)) ++ auxPrint(tok)
 
 
 
--- parsers para os tokens
-
-
-idToken = tokenPrim show update_pos get_token where
-  get_token (Id x p) = Just (Id x p)
-  get_token _      = Nothing
-
-semiColonToken :: ParsecT [Token] st IO (Token)
-semiColonToken = tokenPrim show update_pos get_token where
-  get_token (SemiColon p) = Just (SemiColon p)
-  get_token _         = Nothing
-
-colonToken = tokenPrim show update_pos get_token where
-  get_token (Colon p) = Just (Colon p)
-  get_token _     = Nothing
-
-intToken = tokenPrim show update_pos get_token where
-  get_token (Int x p) = Just (Int x p)
-  get_token _       = Nothing
-
--- typeToken = tokenPrim show update_pos get_token where
---   get_token (Type (x) p) = Just (Type (x) p)
---   get_token _        = Nothing 
-    
-openParToken = tokenPrim show update_pos get_token where
-  get_token (OpenPar p) = Just (OpenPar p)
-  get_token _     = Nothing
-
-closeParToken = tokenPrim show update_pos get_token where
-  get_token (ClosePar p) = Just (ClosePar p)
-  get_token _   = Nothing
-  
-varsBlockToken = tokenPrim show update_pos get_token where
-  get_token (VarsBlock p) = Just (VarsBlock p)
-  get_token _   = Nothing
-
-processBlockToken = tokenPrim show update_pos get_token where
-  get_token (ProcessBlock p) = Just (ProcessBlock p)
-  get_token _   = Nothing
-
-subprogramsBlockToken = tokenPrim show update_pos get_token where
-  get_token (SubprogramsBlock p) = Just (SubprogramsBlock p)
-  get_token _   = Nothing
-
-openCurlyBracketsToken = tokenPrim show update_pos get_token where
-  get_token (OpenCurlyBrackets p) = Just (OpenCurlyBrackets p)
-  get_token _   = Nothing
-
-closeCurlyBracketsToken = tokenPrim show update_pos get_token where
-  get_token (CloseCurlyBrackets p) = Just (CloseCurlyBrackets p)
-  get_token _   = Nothing
-
-equalsToken = tokenPrim show update_pos get_token where
-  get_token (Equals p) = Just (Equals p)
-  get_token _   = Nothing
-
-numToken = tokenPrim show update_pos get_token where
-  get_token (Num x p) = Just (Num x p)
-  get_token _   = Nothing
-
-numWithSpecificationToken = tokenPrim show update_pos get_token where
-  get_token (NumWithSpecification p) = Just (NumWithSpecification p)
-  get_token _   = Nothing
-
-commaToken = tokenPrim show update_pos get_token where
-  get_token (Comma p) = Just (Comma p)
-  get_token _   = Nothing
-
-addToken = tokenPrim show update_pos get_token where
-  get_token (Add p) = Just (Add p)
-  get_token _   = Nothing
-
-subToken = tokenPrim show update_pos get_token where
-  get_token (Sub p) = Just (Sub p)
-  get_token _   = Nothing
-
-multToken = tokenPrim show update_pos get_token where
-  get_token (Mult p) = Just (Mult p)
-  get_token _   = Nothing
-
-powToken = tokenPrim show update_pos get_token where
-  get_token (Pow p) = Just (Pow p)
-  get_token _   = Nothing
-
-divToken = tokenPrim show update_pos get_token where
-  get_token (Div p) = Just (Div p)
-  get_token _   = Nothing
-
-printToken = tokenPrim show update_pos get_token where
-  get_token (Print p) = Just (Print p)
-  get_token _    = Nothing
-
-returnToken = tokenPrim show update_pos get_token where
-  get_token (Return p) = Just (Return p)
-  get_token _   = Nothing
-
-ifToken = tokenPrim show update_pos get_token where
-  get_token (If p) = Just (If p)
-  get_token _    = Nothing
-
-elseToken = tokenPrim show update_pos get_token where
-  get_token (Else p) = Just (Else p)
-  get_token _ = Nothing
-
-lessToken = tokenPrim show update_pos get_token where
-  get_token (Less p) = Just (Less p)
-  get_token _    = Nothing
-
-greaterToken = tokenPrim show update_pos get_token where
-  get_token (Greater p) = Just (Greater p)
-  get_token _    = Nothing
-
-forToken = tokenPrim show update_pos get_token where
-  get_token (For p) = Just (For p)
-  get_token _ = Nothing
 
 
 
 
 
-
-
-  
-
-floatToken :: ParsecT [Token] st IO (Token)
-floatToken = tokenPrim show update_pos get_token where 
-  get_token (Float x p)   = Just (Float x p)
-  get_token _           = Nothing
-
-
-stringLitToken :: ParsecT [Token] st IO (Token)
-stringLitToken = tokenPrim show update_pos get_token where 
-  get_token (StringLit x p)   = Just (StringLit x p)
-  get_token _            = Nothing
-
-charToken :: ParsecT [Token] st IO (Token)
-charToken = tokenPrim show update_pos get_token where 
-  get_token (Char x p)     = Just (Char x p)
-  get_token _            = Nothing
-
-
-update_pos :: SourcePos -> Token -> [Token] -> SourcePos
-update_pos pos _ (tok:_) = pos -- necessita melhoria
-update_pos pos _ []      = pos  
-
-
-
-
--- parsers para os não-terminais  
+-------------------------------Parsers-------------------------------
 program :: ParsecT [Token] Memory IO ([Token]) -- Memory define o tipo do user state
 program = do
             a <- varsBlock
             b <- subprogramsBlock
             updateState(beginExecution)
-            c <- processBlock 
+            (c, _) <- processBlock
             eof
             return (a ++ b ++ c)
 
--- ------------------------------varsBlock---------------------------
+
+
+
+
+
+
+-------------------------------varsBlock-------------------------------
 
 varsBlock :: ParsecT [Token] Memory IO ([Token])
 varsBlock = (do 
@@ -298,6 +165,19 @@ numType =
           (numToken) <|> (numWithSpecificationToken)
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 -- ------------------------------subprogramsBlock---------------------------
 
 subprogramsBlock :: ParsecT [Token] Memory IO ([Token])
@@ -324,7 +204,6 @@ subProgram = do
                 d <- parametersList
                 e <- closeParToken
                 s <- getState
-                -- when (isRunning s) ()
                 (f, _) <- subProgramBody
                 updateState(popMemStack)
                 s <- getState
@@ -363,12 +242,17 @@ subProgramBody :: ParsecT [Token] Memory IO ([Token], Type)
 subProgramBody = do 
                     a <- openCurlyBracketsToken
                     b <- varsBlock
-                    c <- processBlock
-                    d <- returnToken
-                    (expT, expVal) <- expression
-                    e <- semiColonToken
-                    f <- closeCurlyBracketsToken
-                    return ([a] ++ b ++ c ++ [d] ++ expT ++ [e] ++ [f], expVal)
+                    (c, returnValue) <- processBlock
+--                    d <- returnToken
+--                    (expT, expVal) <- expression
+--                    e <- semiColonToken
+                    d <- closeCurlyBracketsToken
+                    return ([a] ++ b ++ c ++ [d], returnValue)
+
+
+
+
+
 
 
 
@@ -379,34 +263,63 @@ subProgramBody = do
 
 -- ------------------------------processBlock---------------------------
 
-processBlock :: ParsecT [Token] Memory IO ([Token])
+processBlock :: ParsecT [Token] Memory IO ([Token], Type)
 processBlock = do 
                   a <- processBlockToken
                   b <- colonToken
-                  c <- stmts
-                  return ([a] ++ [b] ++ c)
+                  (c, returnValue) <- stmts
+                  return ([a] ++ [b] ++ c, returnValue)
 
 
-stmts :: ParsecT [Token] Memory IO ([Token])
+stmts :: ParsecT [Token] Memory IO ([Token], Type)
 stmts = do
-          first <- stmt
-          next <- remainingStmts
-          return (first ++ next)
+          (a, rv1) <- stmt
+          (b, rv2) <- remainingStmts
+          let returnValue = if (rv1 == NoValue) then rv2 else rv1
+          return (a ++ b, returnValue)
 
 
-stmt :: ParsecT [Token] Memory IO ([Token])
-stmt = do
-          a <- (assign <|> printVar <|> ifMainBlock <|> forBlock)
-          b <- semiColonToken
-          return (a ++ [b])
+stmt :: ParsecT [Token] Memory IO ([Token], Type)
+stmt = singleLineStmt <|> blockStmt
 
-remainingStmts :: ParsecT [Token] Memory IO ([Token])
-remainingStmts = 
-                (stmts) <|> (return [])
+singleLineStmt :: ParsecT [Token] Memory IO ([Token], Type)
+singleLineStmt = do
+                    (a, returnValue) <- (assign <|> printVar <|> returnStmt)
+                    b <- semiColonToken
+                    return (a ++ [b], returnValue)
 
--- ---------------------------------Print----------------------------------
+blockStmt :: ParsecT [Token] Memory IO ([Token], Type)
+blockStmt = ifMainBlock <|> forBlock
 
-printVar :: ParsecT [Token] Memory IO ([Token])
+remainingStmts :: ParsecT [Token] Memory IO ([Token], Type)
+remainingStmts = (stmts) <|> (return ([], NoValue))
+
+assign :: ParsecT [Token] Memory IO ([Token], Type)
+assign = do
+          a <- idToken
+          b <- equalsToken
+          (expT, expVal) <- expression
+          ce <- canExecute
+          when (ce) (updateState(symtableUpdate a expVal))
+          e <- getState
+          liftIO (printMem e)
+          return ([a] ++ [b] ++ expT, NoValue)
+
+
+expression :: ParsecT [Token] Memory IO ([Token], Type)
+expression = try binOp <|> unaryExpression
+
+unaryExpression :: ParsecT [Token] Memory IO ([Token], Type)
+unaryExpression = do
+                    a <- op
+                    (tok, val) <- intLit
+                    let valWithSign = evalSign a val
+                    return ([a] ++ tok, valWithSign)
+
+
+
+
+printVar :: ParsecT [Token] Memory IO ([Token], Type)
 printVar = do 
                 a <- printToken
                 b <- openParToken
@@ -415,27 +328,23 @@ printVar = do
                 (expT, expVal) <- expression
                 g <- closeParToken
                 liftIO (printVars string expVal)
-                return ([a] ++ [b] ++ [string] ++  [comma] ++ expT ++ [g])
+                return ([a] ++ [b] ++ [string] ++  [comma] ++ expT ++ [g], NoValue)
 
 
 
-
--- ------------------------------Salto condicional---------------------------
-
-
-
-ifMainBlock :: ParsecT [Token] Memory IO ([Token])
+ifMainBlock :: ParsecT [Token] Memory IO ([Token], Type)
 ifMainBlock = do
-                (_, (Boolean valor)) <- ifEvalue
+                (a, (Boolean valor)) <- ifEvalue
                 s <- getState
                 when(isRunning s && not valor) (updateState(endBlockExecution))
-                a <- block
+                (b, rv1) <- block
                 when(isRunning s) (
                   if (not valor) then (updateState(beginBlockExecution))
                   else (updateState(endBlockExecution)))
-                b <- remainingIfblock valor
+                (c, rv2) <- remainingIfblock valor
                 updateState(beginBlockExecution)
-                return (a ++ b)
+                let returnValue = if valor then rv1 else rv2
+                return (a ++ b ++ c, returnValue)
 
 ifEvalue :: ParsecT [Token] Memory IO ([Token], Type)
 ifEvalue = (do
@@ -445,92 +354,70 @@ ifEvalue = (do
             d <- closeParToken
             return ([a] ++ [b] ++ c ++ [d], valor))
 
-remainingIfblock :: Bool -> ParsecT [Token] Memory IO ([Token])
+remainingIfblock :: Bool -> ParsecT [Token] Memory IO ([Token], Type)
 remainingIfblock prevValue = try (
                           do 
                           a <- elseToken
                           (b, (Boolean valor)) <- ifEvalue
                           s <- getState
                           when(isRunning s && not valor) (updateState(endBlockExecution))
-                          c <- block
+                          (c, rv1) <- block
                           when(isRunning s) (
                             if(not valor && not prevValue) then (updateState(beginBlockExecution))
                             else (updateState(endBlockExecution)))
-                          d <- remainingIfblock valor
-                          return ([a] ++ b ++ c ++ d)
+                          (d, rv2)<- remainingIfblock valor
+                          let returnValue = if valor then rv1 else rv2
+                          return ([a] ++ b ++ c ++ d, returnValue)
                         )
                      <|>
                         (
                           do
                           a <- elseToken
-                          b <- block
-                          return ([a] ++ b)
+                          (b, returnValue) <- block
+                          return ([a] ++ b, returnValue)
                         )
-                     <|> return ([]) 
+                     <|> return ([], NoValue)
 
 
-block :: ParsecT [Token] Memory IO ([Token])
+-- TODO: make it return possible values from statements
+block :: ParsecT [Token] Memory IO ([Token], Type)
 block = do
             e <- openCurlyBracketsToken
-            f <- stmts
+            (f, returnValue) <- stmts
             g <- closeCurlyBracketsToken
-            return ([e] ++ f ++ [g])
+            return ([e] ++ f ++ [g], returnValue)
 
 
-
-canExecute :: ParsecT [Token] Memory IO (Bool) 
-canExecute = do
-                s <- getState
-                return (isRunning s && isBlockRunning s)
-
-forBlock :: ParsecT [Token] Memory IO ([Token])
+-- TODO: make it return possible values from statements
+forBlock :: ParsecT [Token] Memory IO ([Token], Type)
 forBlock = do
               a <- forExpression
               b <- openCurlyBracketsToken
-              c <- stmts
+              (c, returnValue) <- stmts
               d <- closeCurlyBracketsToken
-              return (a ++  [b] ++ c ++ [d])
+              return (a ++  [b] ++ c ++ [d], NoValue)
 
 forExpression :: ParsecT [Token] Memory IO ([Token])
 forExpression = do
                 a <- forToken
                 b <- openParToken
-                c <- assign
+                (c, _) <- assign
                 d <- semiColonToken
                 (expT, Boolean valor) <- binOp
                 -- Analisar valor para saber quando chamar recursivamente
                 f <- semiColonToken
-                token <- assign
+                (token, _) <- assign
                 h <- closeParToken
                 return ([a] ++ [b] ++ expT ++ c ++ [d] ++ [f] ++ token ++ [h])
 
 
-assign :: ParsecT [Token] Memory IO ([Token])
-assign = do
-          a <- idToken
-          b <- equalsToken
-          (expT, expVal) <- expression
-          ce <- canExecute
-          when (ce) (updateState(symtableUpdate a expVal))
-          e <- getState
-          liftIO (printMem e)
-          return ([a] ++ [b] ++ expT)
+returnStmt :: ParsecT [Token] Memory IO ([Token], Type)
+returnStmt = do
+                a <- returnToken
+                (b, expVal) <- expression
+                return ([a] ++ b, expVal)
 
 
-expression :: ParsecT [Token] Memory IO ([Token], Type)
-expression = try binOp <|> unaryExpression
-
-unaryExpression :: ParsecT [Token] Memory IO ([Token], Type)
-unaryExpression = do 
-                    a <- op
-                    (tok, val) <- intLit
-                    let valWithSign = evalSign a val
-                    return ([a] ++ tok, valWithSign)
-
-
--- TODO: finalizar implemnetação
-evalSign :: Token -> Type -> Type
-evalSign _ t = t
 
 
 --- funções considerando associatividade à esquerda 
@@ -569,10 +456,6 @@ varId = do
             return ([a], evalVar a s)
 
 
-
-
-                  
-
 subProgramCall :: ParsecT [Token] Memory IO ([Token], Type)
 subProgramCall = do 
                   (Id funName p) <- idToken
@@ -608,12 +491,18 @@ remainingArguments = (do
 
 
 
+----------processBlock - auxiliary functions----------
+
+-- TODO: finalizar implementação
+evalSign :: Token -> Type -> Type
+evalSign _ t = t
 
 
+canExecute :: ParsecT [Token] Memory IO (Bool)
+canExecute = do
+                s <- getState
+                return (isRunning s && isBlockRunning s)
 
-
-
--- funções para a tabela de símbolos
 
 evalOp :: Type -> Token -> Type -> Type
 evalOp (Numeric x) (Pow _) (Numeric y) = Numeric (x ^ y)
@@ -640,16 +529,20 @@ evalVarAux (Id x p) ((name, Numeric v):lv) =
                                     if x == name then Numeric v
                                     else evalVarAux (Id x p) lv
 
---evalFunCall :: Token -> Memory -> ParsecT [Token] Memory IO (Type)
---evalFunCall (Id funName _) ((_, funs):_, _) = do
---                                                 a <- getInput
---                                                 b <- getState
---                                                 setInput funBody
---                                                 x <- runParserT subProgramBody b "Error message" funBody
---                                                 return (v)
---                                                   where (_, _, funBody) = findFun funName funs
---evalFunCall :: Token -> Type
---evalFunCall _ = Numeric 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+-------------- Memory functions ------------------
 
 -- TODO: Exibir erro caso não encontre função
 findFun :: String -> Functions -> Function
@@ -674,8 +567,6 @@ addParametersToMemoryAux ((Comma _):args) params mem = addParametersToMemoryAux 
 addParametersToMemoryAux [] [] mem = mem
 
 
---getVarVal :: Variable -> Type
---getVarVal (_, val) = val
 
 -- Get a variable by name from the most recent reference enviroment of the Stack
 getVar :: String -> Memory -> Variable

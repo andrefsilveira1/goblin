@@ -32,7 +32,7 @@ alex lexer.x
 Para compilar o parser:
 
 ```
-ghc goblin_exec.hs lexer.hs -o parser
+ghc goblin_exec.hs lexer.hs primitive_tokens.hs -o parser
 ```
 
 Finalmente, para o parser ler um arquivo de exemplo:
