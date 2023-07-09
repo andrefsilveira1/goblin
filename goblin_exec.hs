@@ -397,7 +397,7 @@ loopBlock = do
               d <- closeCurlyBracketsToken
               when(not valor) (do
                 setInput start
-                a <- loopBlock 
+                _ <- loopBlock 
                 return ())
               return ([a] ++ tokens ++ [b] ++ c ++ [d], NoValue)
 
