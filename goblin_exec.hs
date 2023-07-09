@@ -390,10 +390,15 @@ block = do
 -- TODO: make it return possible values from statements
 loopBlock :: ParsecT [Token] Memory IO ([Token], Type)
 loopBlock = do
+              start <- getInput
               (a, tokens, valor) <- loopExpression
               b <- openCurlyBracketsToken
               (c, returnValue) <- stmts
               d <- closeCurlyBracketsToken
+              when(not valor) (do
+                setInput start
+                a <- loopBlock 
+                return ())
               return ([a] ++ tokens ++ [b] ++ c ++ [d], NoValue)
 
 loopExpression :: ParsecT [Token] Memory IO (Token, [Token], Bool)
