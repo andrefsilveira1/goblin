@@ -378,18 +378,26 @@ remainingIfblock prevValue = try (
 -- TODO: make it return possible values from statements
 block :: ParsecT [Token] Memory IO ([Token], Type)
 block = do
-            e <- openCurlyBracketsToken
-            (f, returnValue) <- stmts
-            g <- closeCurlyBracketsToken
-            return ([e] ++ f ++ [g], returnValue)
+            a <- openCurlyBracketsToken
+            (b, returnValue) <- stmts
+            c <- closeCurlyBracketsToken
+            return ([a] ++ b ++ [c], returnValue)
 
 
 -- TODO: make it return possible values from statements
 loopBlock :: ParsecT [Token] Memory IO ([Token], Type)
 loopBlock = do
               a <- loopInitializer
-              (b, returnValue) <- loopUnit
-              return (a ++ b, NoValue)
+
+              updateState(endBlockExecution)
+              (b, loopCondition, currInput) <- loopConditionAndAction
+              updateState(beginBlockExecution)
+
+              when(not loopCondition) (updateState(endBlockExecution))
+              (c, returnValue) <- loopUnit currInput
+              updateState(beginBlockExecution)
+
+              return (a ++ b ++ c, NoValue)
 
 loopInitializer :: ParsecT [Token] Memory IO ([Token])
 loopInitializer = do
@@ -399,19 +407,40 @@ loopInitializer = do
                       d <- semiColonToken
                       return ([a] ++ [b] ++ c ++ [d])
 
+loopConditionAndAction :: ParsecT [Token] Memory IO ([Token], Bool, [Token])
+loopConditionAndAction = do
+                      unitLoopStart <- getInput
+                      _ <- binOp
+                      _ <- semiColonToken
+
+                      (c, _) <- singleLineStmt
+
+                      currInput <- getInput
+                      setInput unitLoopStart
+                      (a, Boolean loopCondition) <- binOp
+                      b <- semiColonToken
+                      setInput currInput
+
+                      d <- closeParToken
+
+                      return (a ++ [b] ++ c ++ [d], loopCondition, unitLoopStart)
+
 -- TODO: make it return possible values from statements
-loopUnit :: ParsecT [Token] Memory IO ([Token], Type)
-loopUnit = do
-                start <- getInput
-                (a, loopCondition) <- loopExpression
-                b <- openCurlyBracketsToken
-                (c, returnValue) <- stmts
-                d <- closeCurlyBracketsToken
-                when(loopCondition) (do
+loopUnit :: [Token] -> ParsecT [Token] Memory IO ([Token], Type)
+loopUnit start = do
+                (a, returnValue) <- block
+
+                s <- getState
+                currInput <- getInput
+                when(isBlockRunning s) (do
                   setInput start
-                  _ <- loopUnit
+                  (_, loopCondition, _) <- loopConditionAndAction
+                  if(loopCondition) then (do
+                    _ <- loopUnit start
+                    return ())
+                  else (setInput currInput)
                   return ())
-                return (a ++ [b] ++ c ++ [d], NoValue)
+                return (a, NoValue)
 
 
 loopExpression :: ParsecT [Token] Memory IO ([Token], Bool)
