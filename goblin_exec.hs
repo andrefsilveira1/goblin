@@ -13,7 +13,7 @@ import PrimitiveTokens
 -----------------------------Memory-----------------------------
 
 --type Digit = 0 | 1 | 2...| 9
-data Type = Numeric Int | Boolean Bool | NoValue -- | NumericWithSpec ((Int, [Digit]), (Int, [Digit]))
+data Type = Numeric Int | Boolean Bool | UserDefined (String, Variables, Functions) | NoValue -- | NumericWithSpec ((Int, [Digit]), (Int, [Digit]))
 instance Eq Type where
     (Numeric _)  == (Numeric _) = True
     (Boolean _) == (Boolean _) = True
@@ -128,12 +128,13 @@ printVars (StringLit value _) tok = putStrLn (init(tail(value)) ++ auxPrint(tok)
 -------------------------------Parsers-------------------------------
 program :: ParsecT [Token] Memory IO ([Token]) -- Memory define o tipo do user state
 program = do
-            a <- varsBlock
-            b <- subprogramsBlock
+            a <- typesBlock
+            b <- varsBlock
+            c <- subprogramsBlock
             updateState(beginExecution)
-            (c, _) <- processBlock
+            (d, _) <- processBlock
             eof
-            return (a ++ b ++ c)
+            return (a ++ b ++ c ++ d)
 
 
 
