@@ -3,7 +3,7 @@
 # See http://www.sublimetext.com/docs/3/syntax.html
 name: Goblin
 file_extensions:
-  - pe
+  - gb
 scope: source.goblin
 
 contexts:

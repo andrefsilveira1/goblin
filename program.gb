@@ -52,14 +52,6 @@ process:
 		x = 22;
 	}
 
-	print("Variável: ", x);
-	
-	loop(x = 0; x < 5; x = x + 1) {
-		print("Chegou ao fim aqui ", x);
-		x = 2;
-	}
-
 	if(x != y) {
 		y = 111111;
-	} 
-	print("Chegou ao fim aqui ", y);
+	}
