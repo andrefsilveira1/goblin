@@ -519,33 +519,43 @@ subProgramCall :: ParsecT [Token] Memory IO ([Token], Type)
 subProgramCall = do 
                   (Id funName p) <- idToken
                   b <- openParToken
-                  c <- argumentList
+                  (c, valList) <- argumentList
                   d <- closeParToken
-                  updateState(pushMemStack)
-                  updateState(addParametersToMemory (Id funName p) c)
+                  ce <- canExecute
+                  v <- if (ce) then (
+                    do
 
-                  s <- getState
-                  let (_, _, funBody) = findFun funName (getFuns s)
-                  inp <- getInput
-                  setInput funBody
-                  (_, v) <- subProgramBody
-                  setInput inp
+                        updateState(pushMemStack)
 
-                  updateState(popMemStack)
+                        updateState(addParametersToMemory (Id funName p) valList)
+
+                        s <- getState
+                        let (_, _, funBody) = findFun funName (getFuns s)
+                        inp <- getInput
+                        setInput funBody
+                        (_, v) <- subProgramBody
+                        setInput inp
+
+                        updateState(popMemStack)
+                        return (v))
+                    else (do
+                        let v = NoValue
+                        return (v))
+
                   return ([(Id funName p)] ++ [b] ++ c ++ [d], v)
 
 
-argumentList :: ParsecT [Token] Memory IO ([Token])
+argumentList :: ParsecT [Token] Memory IO ([Token], [Type])
 argumentList = do  
-                  a <- idToken
-                  b <- remainingArguments
-                  return ([a] ++ b)
+                  (a, valA) <- expression
+                  (b, valList) <- remainingArguments
+                  return (a ++ b, valA:valList)
 
-remainingArguments :: ParsecT [Token] Memory IO ([Token])
+remainingArguments :: ParsecT [Token] Memory IO ([Token], [Type])
 remainingArguments = (do  
                   a <- commaToken
-                  b <- argumentList
-                  return ([a] ++ b)) <|> (return [])
+                  (b, valList) <- argumentList
+                  return ([a] ++ b, valList)) <|> (return ([], []))
 
 
 
@@ -612,21 +622,19 @@ findFun name ((n, params, body):lf) = if name == n then (n, params, body)
                                            else findFun name lf
 
 
-addParametersToMemory :: Token -> [Token] -> Memory -> Memory
+addParametersToMemory :: Token -> [Type] -> Memory -> Memory
 addParametersToMemory (Id name _) args ((varsG, funs), s, ir, irb) = addParametersToMemoryAux args params ((varsG, funs), s, ir, irb)
     where (_, params, _) = findFun name funs
 
-addParametersToMemoryAux :: [Token] -> [Token] -> Memory -> Memory
-addParametersToMemoryAux ((Id name _):args) ((Id paramName pp):params) mem =
+addParametersToMemoryAux :: [Type] -> [Token] -> Memory -> Memory
+addParametersToMemoryAux (val:args) ((Id paramName pp):params) mem =
     addParametersToMemoryAux args params updatedMem
         where
-            (_, val) = getVar name mem
             updatedMem = insertVar (Id paramName pp) val mem
 
 -- In case of a collon or type in the paramList
 addParametersToMemoryAux args ((Comma _):params) mem = addParametersToMemoryAux args params mem
 addParametersToMemoryAux args ((Num _ _):params) mem = addParametersToMemoryAux args params mem
-addParametersToMemoryAux ((Comma _):args) params mem = addParametersToMemoryAux args params mem
 addParametersToMemoryAux [] [] mem = mem
 
 

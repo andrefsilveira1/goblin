@@ -1,0 +1,17 @@
+types:
+
+    complex {
+        fields:
+            num r;
+            num i;
+
+        operations:
+            complex +(complex x, complex y) {
+                vars:
+                    complex result;
+                process:
+                    result.r = x.r + y.r;
+                    result.i = x.i + y.i
+                    return result;
+            }
+    }

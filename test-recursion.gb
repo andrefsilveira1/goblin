@@ -1,0 +1,25 @@
+vars:
+    num x;
+    num result;
+
+
+subprograms:
+    num fib(num n) {
+        process:
+            if(n == 0) {
+                return 0;
+            } else if (n == 1) {
+                return 1;
+            }
+            else {
+                return fib(n-1) + fib(n-2);
+            }
+    }
+
+
+process:
+    loop(x = 0; x < 10; x = x + 1;) {
+        result = fib(x);
+        print("result: ", result);
+    }
+
