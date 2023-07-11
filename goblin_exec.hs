@@ -157,14 +157,15 @@ varDecls = (do
               return (a ++ b))
 
 
+varMainDecl :: ParsecT [Token] Memory IO ([Token])
+varMainDecl = do
+              a <- varDecl
+              s <- getState
+              liftIO (printMem s)
+              return ([a])
+
 varDecl :: ParsecT [Token] Memory IO ([Token])
-varDecl = do
-            a <- varPrimiteDecl
-            <|>
-            a <- varArrayDecl 
-            s <- getState
-            liftIO (printMem s)
-            return ([a] ++ [b] ++ [c])
+varDecl = varPrimiteDecl <|> varArrayDecl 
 
 varPrimiteDecl :: ParsecT [Token] Memory IO ([Token])
 varPrimiteDecl = do
@@ -662,9 +663,9 @@ get_default_value (Num "num" _) = Numeric 0
 
 
 get_default_value_array :: Token -> Int -> Type
-get_default_value_array type 0 = get_default_value type
-get_default_value_array type size = Array ((get_default_value type):minhaListaRestante, size)
-  where (minhaListaRestante, _) = get_default_value_array type (size-1)
+get_default_value_array arrType 0 = get_default_value arrType
+get_default_value_array arrType size = Array (get_default_value arrType : [tail], size)
+  where tail = get_default_value_array arrType (size - 1)
   -- Array ([0,0,0,0,0], 5)
 
 
