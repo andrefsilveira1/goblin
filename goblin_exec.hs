@@ -162,7 +162,7 @@ varMainDecl = do
               a <- varDecl
               s <- getState
               liftIO (printMem s)
-              return ([a])
+              return (a)
 
 varDecl :: ParsecT [Token] Memory IO ([Token])
 varDecl = varPrimiteDecl <|> varArrayDecl 
@@ -184,7 +184,7 @@ varArrayDecl = do
                   e <- closeSquareBrackets
                   f <- semiColonToken
                   updateState(insertVarGlobal b (get_default_value_array a v))
-                  return ([a] ++ [b] ++ [c] ++ [d] ++ [e] ++ [f])
+                  return ([a] ++ [b] ++ [c] ++ d ++ [e] ++ [f])
 
 
 remainingVarDecls :: ParsecT [Token] Memory IO ([Token])
