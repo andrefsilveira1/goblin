@@ -15,3 +15,14 @@ types:
                     return result;
             }
     }
+
+vars:
+  complex x;
+
+
+process:
+  x.r = 10;
+  x.i = 20;
+
+  print("x.r: " , x.r);
+  print("x.i: " , x.i);

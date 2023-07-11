@@ -28,12 +28,12 @@ type Variables = [Variable] -- nome e tipo
 type FunName = String
 type FunParams = [Token]
 type FunBody = [Token]
-
 type Function = (FunName, FunParams, FunBody)
+type Functions = [Function]
 
-type Functions = [Function] 
 type Stack = [Variables]
-type Globals = (Variables, Functions)
+type UserTypes = [Type]
+type Globals = (Variables, Functions, UserTypes)
 
 -- User state
 -- Global variables and functions, stack of local variables, execution flag and block execution flag
@@ -135,6 +135,92 @@ program = do
             (d, _) <- processBlock
             eof
             return (a ++ b ++ c ++ d)
+
+
+
+
+
+
+
+-------------------------------TypesBlock-------------------------------
+typesBlock :: ParsecT [Token] Memory IO ([Token])
+typesBlock = (do
+              a <- typesBlockToken
+              b <- colonToken
+              c <- typeDecls
+              return ([a] ++ [b] ++ c)) <|> (return [])
+
+
+typeDecls :: ParsecT [Token] Memory IO ([Token])
+typeDecls = (do
+              a <- typeDecl
+              b <- remainingTypeDecls
+              return (a ++ b))
+
+typeDecl :: ParsecT [Token] Memory IO ([Token])
+typeDecl = do
+            a <- idToken
+            updateState(insertUserType a)
+            b <- openCurlyBracketsToken
+            c <- fieldsBlock
+            d <- operationsBlock
+            updateState(updateUserType a c d)
+            z <- closeCurlyBracketsToken
+            return ([a] ++ [b] ++ [c])
+
+remainingTypeDecls :: ParsecT [Token] Memory IO ([Token])
+remainingTypeDecls = (typeDecls) <|> (return [])
+
+
+fieldsBlock :: ParsecT [Token] Memory IO ([Token], [Variables])
+fieldsBlock = do
+                a <- fieldsBlockToken
+                b <- colonToken
+                (c, fieldVars) <- fields
+                return ([a] ++ [b] ++ c, fieldVars)
+
+fields :: ParsecT [Token] Memory IO ([Token], [Variables])
+fields = do
+            (a, fieldVar) <- field
+            (b, fieldVars) <- remainingFields
+            return (a ++ b, fieldVar:fieldVars)
+
+field :: ParsecT [Token] Memory IO ([Token], Variable)
+field = programField <|> userField
+
+remainingFields :: ParsecT [Token] Memory IO ([Token], [Variables])
+remainingFields = (fields) <|> (return [])
+
+programField :: ParsecT [Token] Memory IO ([Token], Variable)
+programField = do
+                  a <- typeVar
+                  (Id name p) <- idToken
+                  c <- semiColonToken
+                  return (a ++ (Id name p) ++ c, (name, (get_default_value a)))
+
+userField :: ParsecT [Token] Memory IO ([Token], Variable])
+userField = do
+               typeName <- idToken
+               (Id fieldName p) <- idToken
+               c <- semiColonToken
+               s <- getState
+               let userType = findUserType typeName s
+               return (typeName ++ (Id fieldName p) ++ c, (fieldName, userType))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -662,21 +748,28 @@ insertSubprogram (Id name _) parametersList allTokens ((vars, funs), s, ir, irb)
 addSubprogramToMemory :: String -> [Token] -> [Token] -> Functions -> Functions
 addSubprogramToMemory name parametersList body funs = (name, parametersList, body):funs
 
+-- Exceptions
+notFoundException :: String -> SourcePos
+notFoundException name (l, c) = error ("Variable " ++ name  ++ " not found " ++ "at line " ++ show l ++ ", column " ++ show c)
+
+nameInUseException :: String -> SourcePos
+nameInUseException name (l, c) = error ("Name " ++ name  ++ " already in use at line " ++ show l ++ ", column " ++ show c)
+
 -- TODO: Por que fail não é aceito pelo compilador nessa função após o isRunning ser adicionado a memória?
 -- Recebe um idToken, um typeToken, a memória e retorna a memória atualizada
 updateVar :: Token -> Type -> Memory -> Memory
-updateVar (Id name (l, c)) val ((gVars, funs), s:ls, ir, irb) = do
-  let global = updateVarAux (Id name (l, c)) val gVars
+updateVar (Id name p) val ((gVars, funs), s:ls, ir, irb) = do
+  let global = updateVarAux (Id name p) val gVars
   if(global /= []) then ((global, funs), s:ls, ir, irb)
   else (do
-    let stackVars = updateVarAux (Id name (l, c)) val s
+    let stackVars = updateVarAux (Id name p) val s
     if(stackVars /= []) then ((gVars, funs), stackVars:ls, ir, irb)
-    else error ("variable " ++ name  ++ " not found " ++ "at line " ++ show l ++ ", column " ++ show c))
-
-updateVar (Id name (l, c)) val ((gVars, funs), [], ir, irb) = do
-  let global = updateVarAux (Id name (l, c)) val gVars
+    else notFoundException name p)
+updateVar (Id name p) val ((gVars, funs), [], ir, irb) = do
+  let global = updateVarAux (Id name p) val gVars
   if(global /= []) then ((global, funs), [], ir, irb)
-  else error ("variable " ++ name  ++ " not found " ++ "at line " ++ show l ++ ", column " ++ show c)
+  else notFoundException name p
+
 
 updateVarAux :: Token -> Type -> Variables -> Variables
 updateVarAux _ _ [] = []
@@ -685,19 +778,24 @@ updateVarAux (Id id1 p) val ((name, Numeric v):lv) =
                                else (if result == [] then [] else (name, Numeric v) : result)
                                where result = updateVarAux (Id id1 p) val lv
 
+insertUserType :: Token -> Memory -> Memory
+insertUserType id (g, s, ir, irb) = (ng, s, ir, irb)
+  where ng = insertUserTypeAux id g
+
+insertUserTypeAux :: Token -> Globals -> Globals
+insertUserTypeAux (Id name p) (v, f, (utName, _, _):uts) =
+  if name == utName then nameInUseException name p
+  else insertUserTypeAux (Id name p) (v, f, uts)
+insertUserTypeAux (Id name p) (v, f, []) = (v, f, (UserDefined (name, [], [])):[])
 
 
--- symtable_remove :: (Token,Token) -> Memory -> Memory
--- symtable_remove _ [] = fail "variable not found"
--- symtable_remove (id1, v1) ((id2, v2):t) = 
---                                if id1 == id2 then t
---                                else (id2, v2) : symtable_remove (id1, v1) t                               
 
--- parser para memória
+
+
+
 
 
 -- invocação do parser para o símbolo de partida 
-
 parser :: [Token] -> IO (Either ParseError [Token])
 parser tokens = runParserT program (([], []), [], False, False) "Error message" tokens
 

@@ -28,9 +28,12 @@ tokens :-
   ")"                                   { \p s -> ClosePar (getLC p)}
   Float                                 { \p s -> Float s (getLC p)}
   Char                                  { \p s -> Char s (getLC p)}  
+  types                                 { \p s -> TypesBlock (getLC p)}
   vars                                  { \p s -> VarsBlock (getLC p)}
   subprograms                           { \p s -> SubprogramsBlock (getLC p)}
   process                               { \p s -> ProcessBlock (getLC p)}
+  fields                                { \p s -> FieldsBlock (getLC p)}
+  operations                            { \p s -> OperationsBlock (getLC p)}
   "{"                                   { \p s -> OpenCurlyBrackets (getLC p)}
   "}"                                   { \p s -> CloseCurlyBrackets (getLC p)}
   =                                     { \p s -> Equals (getLC p)}
@@ -75,9 +78,12 @@ data Token =
   ClosePar             (Int, Int) |
   Float    String      (Int, Int) |
   Char     String      (Int, Int) |
+  TypesBlock           (Int, Int) |
   VarsBlock            (Int, Int) |
   SubprogramsBlock     (Int, Int) |
   ProcessBlock         (Int, Int) |
+  FieldsBlock          (Int, Int) |
+  OperationsBlock      (Int, Int) |
   OpenCurlyBrackets    (Int, Int) |
   CloseCurlyBrackets   (Int, Int) |
   Equals               (Int, Int) |

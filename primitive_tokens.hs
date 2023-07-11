@@ -156,15 +156,25 @@ elseToken = tokenPrim show update_pos get_token where
   get_token (Else p) = Just (Else p)
   get_token _ = Nothing
 
-
 loopToken :: ParsecT [Token] st IO (Token)
 loopToken = tokenPrim show update_pos get_token where
   get_token (Loop p) = Just (Loop p)
   get_token _ = Nothing
 
+typesBlockToken :: ParsecT [Token] st IO (Token)
+typesBlockToken = tokenPrim show update_pos get_token where
+  get_token (TypesBlock p) = Just (TypesBlock p)
+  get_token _ = Nothing
 
+fieldsBlockToken :: ParsecT [Token] st IO (Token)
+fieldsBlockToken = tokenPrim show update_pos get_token where
+  get_token (FieldsBlock p) = Just (FieldsBlock p)
+  get_token _ = Nothing
 
-
+operationsBlockToken :: ParsecT [Token] st IO (Token)
+operationsBlockToken = tokenPrim show update_pos get_token where
+  get_token (OperationsBlock p) = Just (OperationsBlock p)
+  get_token _ = Nothing
 
 
 
