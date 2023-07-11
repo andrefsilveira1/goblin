@@ -755,6 +755,8 @@ notFoundException name (l, c) = error ("Variable " ++ name  ++ " not found " ++ 
 nameInUseException :: String -> SourcePos
 nameInUseException name (l, c) = error ("Name " ++ name  ++ " already in use at line " ++ show l ++ ", column " ++ show c)
 
+
+
 -- TODO: Por que fail não é aceito pelo compilador nessa função após o isRunning ser adicionado a memória?
 -- Recebe um idToken, um typeToken, a memória e retorna a memória atualizada
 updateVar :: Token -> Type -> Memory -> Memory
@@ -779,8 +781,8 @@ updateVarAux (Id id1 p) val ((name, Numeric v):lv) =
                                where result = updateVarAux (Id id1 p) val lv
 
 insertUserType :: Token -> Memory -> Memory
-insertUserType id (g, s, ir, irb) = (ng, s, ir, irb)
-  where ng = insertUserTypeAux id g
+insertUserType idT (g, s, ir, irb) = (ng, s, ir, irb)
+  where ng = insertUserTypeAux idT g
 
 insertUserTypeAux :: Token -> Globals -> Globals
 insertUserTypeAux (Id name p) (v, f, (utName, _, _):uts) =
@@ -789,9 +791,14 @@ insertUserTypeAux (Id name p) (v, f, (utName, _, _):uts) =
 insertUserTypeAux (Id name p) (v, f, []) = (v, f, (UserDefined (name, [], [])):[])
 
 
+findUserType :: Token -> Memory -> Type
+findUserType idT ((_, _, uts), _, _, _) = findUserTypeAux idt uts
 
-
-
+findUserTypeAux :: Token -> Variables -> Type
+findUserTypeAux (Id nameSrc p) [] = notFoundException nameSrc p
+findUserTypeAux (Id nameSrc p) (UserDefined (nameTgt, v, f)):uts =
+    if nameSrc == nameTgt then (UserDefined (nameTgt, v, f))
+    else findUserTypeAux (Id nameSrc p) uts
 
 
 
