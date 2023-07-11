@@ -13,7 +13,7 @@ import PrimitiveTokens
 -----------------------------Memory-----------------------------
 
 --type Digit = 0 | 1 | 2...| 9
-data Type = Numeric Int | Boolean Bool | NoValue -- | NumericWithSpec ((Int, [Digit]), (Int, [Digit]))
+data Type = Numeric Int | Boolean Bool | Array ([Type], Int) | NoValue -- | NumericWithSpec ((Int, [Digit]), (Int, [Digit]))
 instance Eq Type where
     (Numeric _)  == (Numeric _) = True
     (Boolean _) == (Boolean _) = True
@@ -159,14 +159,32 @@ varDecls = (do
 
 varDecl :: ParsecT [Token] Memory IO ([Token])
 varDecl = do
-            a <- typeVar
-            b <- idToken
-            s <- getState
-            updateState(insertVarGlobal b (get_default_value a))
-            c <- semiColonToken
+            a <- varPrimiteDecl
+            <|>
+            a <- varArrayDecl 
             s <- getState
             liftIO (printMem s)
             return ([a] ++ [b] ++ [c])
+
+varPrimiteDecl :: ParsecT [Token] Memory IO ([Token])
+varPrimiteDecl = do
+                  a <- typeVar
+                  b <- idToken 
+                  c <- semiColonToken
+                  updateState(insertVarGlobal b (get_default_value a))
+                  return ([a] ++ [b] ++ [c])
+
+varArrayDecl :: ParsecT [Token] Memory IO ([Token])
+varArrayDecl = do 
+                  a <- typeVar
+                  b <- idToken
+                  c <- openSquareBrackets
+                  (d, (Numeric v)) <- intLit
+                  e <- closeSquareBrackets
+                  f <- semiColonToken
+                  updateState(insertVarGlobal b (get_default_value_array a v))
+                  return ([a] ++ [b] ++ [c] ++ [d] ++ [e] ++ [f])
+
 
 remainingVarDecls :: ParsecT [Token] Memory IO ([Token])
 remainingVarDecls = (varDecls) <|> (return [])
@@ -643,13 +661,20 @@ get_default_value :: Token -> Type
 get_default_value (Num "num" _) = Numeric 0
 
 
+get_default_value_array :: Token -> Int -> Type
+get_default_value_array type 0 = get_default_value type
+get_default_value_array type size = Array ((get_default_value type):minhaListaRestante, size)
+  where (minhaListaRestante, _) = get_default_value_array type (size-1)
+  -- Array ([0,0,0,0,0], 5)
+
+
 insertVarGlobal :: Token -> Type -> Memory -> Memory
 insertVarGlobal (Id name _) varType ((vars, funs), s, ir, irb) = ((updatedVars, funs), s, ir, irb)
-                                                    where updatedVars = addVarToMemory name varType vars
+  where updatedVars = addVarToMemory name varType vars
 
 insertVar :: Token -> Type -> Memory -> Memory
 insertVar (Id name _) varType (g, s:ls, ir, irb) = (g, (updatedVars:ls), ir, irb)
-                                                    where updatedVars = addVarToMemory name varType s
+  where updatedVars = addVarToMemory name varType s
 
 addVarToMemory :: String -> Type -> Variables -> Variables
 addVarToMemory name varType vars = (name, varType):vars

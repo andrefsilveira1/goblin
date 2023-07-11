@@ -56,6 +56,17 @@ subprogramsBlockToken = tokenPrim show update_pos get_token where
   get_token (SubprogramsBlock p) = Just (SubprogramsBlock p)
   get_token _   = Nothing
 
+openSquareBrackets :: ParsecT [Token] st IO (Token)
+openSquareBrackets = tokenPrim show update_pos get_token where
+  get_token (OpenSquareBrackets p) = Just (OpenSquareBrackets p)
+  get_token _ = Nothing
+
+closeSquareBrackets :: ParsecT [Token] st IO (Token)
+closeSquareBrackets = tokenPrim show update_pos get_token where
+  get_token (CloseSquareBrackets p) = Just (CloseSquareBrackets p)
+  get_token _ = Nothing
+
+
 openCurlyBracketsToken :: ParsecT [Token] st IO (Token)
 openCurlyBracketsToken = tokenPrim show update_pos get_token where
   get_token (OpenCurlyBrackets p) = Just (OpenCurlyBrackets p)

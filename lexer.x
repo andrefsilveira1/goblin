@@ -26,6 +26,8 @@ tokens :-
   $digit+                               { \p s -> Int (read s)  (getLC p)}
   "("                                   { \p s -> OpenPar  (getLC p)}  
   ")"                                   { \p s -> ClosePar (getLC p)}
+  "["                                   { \p s -> OpenSquareBrackets (getLC p)}
+  "]"                                   { \p s -> CloseSquareBrackets (getLC p)}
   Float                                 { \p s -> Float s (getLC p)}
   Char                                  { \p s -> Char s (getLC p)}  
   vars                                  { \p s -> VarsBlock (getLC p)}
@@ -78,6 +80,8 @@ data Token =
   VarsBlock            (Int, Int) |
   SubprogramsBlock     (Int, Int) |
   ProcessBlock         (Int, Int) |
+  OpenSquareBrackets   (Int, Int) |
+  CloseSquareBrackets  (Int, Int) |
   OpenCurlyBrackets    (Int, Int) |
   CloseCurlyBrackets   (Int, Int) |
   Equals               (Int, Int) |
