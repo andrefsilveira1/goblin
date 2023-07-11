@@ -668,6 +668,19 @@ get_default_value_array arrType size = Array (get_default_value arrType : [tail]
   where tail = get_default_value_array arrType (size - 1)
   -- Array ([0,0,0,0,0], 5)
 
+update_array_value :: Type -> Int -> Type -> Type -> Type
+update_array_value (Array (arr, size)) pos newValue acc
+  | pos < 0 || pos >= size = acc
+  | pos == 0 = Array (newValue : tail arr, size)
+  | otherwise = Array (head arr : updatedTail, size)
+  where
+    updatedTail = tail arr
+    updatedAcc = update_array_value (Array (updatedTail, size - 1)) (pos - 1) newValue acc
+    accWithUpdatedTail = Array (head arr : [updatedAcc], size - 1)
+
+update_array_value _ _ _ acc = acc
+
+
 
 insertVarGlobal :: Token -> Type -> Memory -> Memory
 insertVarGlobal (Id name _) varType ((vars, funs), s, ir, irb) = ((updatedVars, funs), s, ir, irb)
