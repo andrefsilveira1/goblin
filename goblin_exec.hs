@@ -44,15 +44,15 @@ type Memory = (Globals, Stack, Bool, Bool)
 
 -----------------------------Memory access functions-----------------------------
 getFuns :: Memory -> Functions
-getFuns ((_, funs), _, _, _) = funs
+getFuns ((_, funs, _), _, _, _) = funs
 
 getUserTypes :: Memory -> UserTypes
 getUserTypes ((_, _, uts), _, _, _) = uts
 
 
 getCurrentVars :: Memory -> Variables
-getCurrentVars ((vars, _), (sv:_), _, _)  = vars ++ sv
-getCurrentVars ((vars, _), [], _, _) = vars
+getCurrentVars ((vars, _, _), (sv:_), _, _)  = vars ++ sv
+getCurrentVars ((vars, _, _), [], _, _) = vars
 
 
 -- Get a variable by name from the most recent reference environment of the Stack
@@ -168,9 +168,9 @@ typeDecl = do
             (c, vars) <- fieldsBlock
             updateState(updateUserTypeVars a vars)
             (d, funs) <- operationsBlock
-            updateState(updateUserTypeVars a funs)
+            updateState(updateUserTypeFuns a funs)
             z <- closeCurlyBracketsToken
-            return ([a] ++ [b] ++ [c])
+            return ([a] ++ [b] ++ c ++ d)
 
 remainingTypeDecls :: ParsecT [Token] Memory IO ([Token])
 remainingTypeDecls = (typeDecls) <|> (return [])
@@ -195,10 +195,10 @@ field = do
            (Id fieldName p) <- idToken
            c <- semiColonToken
            s <- getState
-           return (a ++ (Id fieldName p) ++ c, (fieldName,  (get_default_value a s)))
+           return ([a] ++ [(Id fieldName p)] ++ [c], (fieldName,  (get_default_value a s)))
 
 remainingFields :: ParsecT [Token] Memory IO ([Token], Variables)
-remainingFields = (fields) <|> (return [])
+remainingFields = (fields) <|> (return ([], []))
 
 
 operationsBlock :: ParsecT [Token] Memory IO ([Token], Functions)
@@ -214,8 +214,8 @@ operations = do
             (b, operationFuns) <- remainingOperations
             return (a ++ b, operationFun:operationFuns)
 
-remainingOperations :: ParsecT [Token] Memory IO ([Token])
-remainingOperations = (operations) <|> (return [])
+remainingOperations :: ParsecT [Token] Memory IO ([Token], Functions)
+remainingOperations = (operations) <|> (return ([], []))
 
 operation :: ParsecT [Token] Memory IO ([Token], Function)
 operation = do
@@ -412,7 +412,7 @@ remainingStmts = (stmts) <|> (return ([], NoValue))
 
 assign :: ParsecT [Token] Memory IO ([Token], Type)
 assign = do
-          a <- lhsAssign
+          a <- idAcessor
           b <- equalsToken
           (expT, expVal) <- expression
           ce <- canExecute
@@ -421,8 +421,8 @@ assign = do
           liftIO (printMem e)
           return (a ++ [b] ++ expT, NoValue)
 
-lhsAssign :: ParsecT [Token] Memory IO ([Token])
-lhsAssign = ([idToken]) <|> idWithField
+idAcessor :: ParsecT [Token] Memory IO ([Token])
+idAcessor = ([idToken]) <|> idWithField
 
 idWithField :: ParsecT [Token] Memory IO ([Token])
 idWithField = do
@@ -606,8 +606,7 @@ evalueRemaining numb = do
 
 operand :: ParsecT [Token] Memory IO ([Token], Type)
 operand = try subProgramCall <|>
-          (varId <|>
-          intLit)
+          (varId <|> intLit)
 
 intLit :: ParsecT [Token] Memory IO ([Token], Type)
 intLit = do
@@ -619,9 +618,9 @@ op = powToken <|> multToken <|> divToken <|> addToken <|> subToken <|> lessToken
 
 varId :: ParsecT [Token] Memory IO ([Token], Type)
 varId = do 
-            a <- idToken
+            a <- idAcessor
             s <- getState
-            return ([a], evalVar a s)
+            return (a, evalVar a s)
 
 
 subProgramCall :: ParsecT [Token] Memory IO ([Token], Type)
@@ -694,25 +693,30 @@ evalOp (Numeric x) (Mod _) (Numeric y) = Numeric (x `mod` y)
 evalOp (Numeric x) (Equiv _) (Numeric y) = Boolean (x == y)
 evalOp (Numeric x) (Diff _) (Numeric y) = Boolean (x /= y)
 
--- [(x, 10), (y, 15)]
--- [([ (x, Numeric 10), (y, Numeric 15) ], [_])]
--- Formato antigo: [(Token, Token)]
 
-
-evalVar :: Token -> Memory -> Type
+evalVar :: [Token] -> Memory -> Type
 evalVar t mem = evalVarAux t (getCurrentVars mem)
-                              
 
--- TODO: Por que fail não é aceito pelo compilador nessa função?
-evalVarAux :: Token -> Variables -> Type
-evalVarAux (Id x (l, c)) [] = error ("variable " ++ x ++ " not in scope at line " ++ show l ++ ", column " ++ show c)
-evalVarAux (Id x p) ((name, Numeric v):lv) = 
-                                    if x == name then Numeric v
-                                    else evalVarAux (Id x p) lv
+evalVarAux :: [Token] -> Variables -> Type
+evalVarAux ((Id x p):ts) [] = error(notFoundException x p)
+evalVarAux ((Id x p):[]) ((name, Numeric v):lv) =
+  if x == name then Numeric v
+  else evalVarAux ((Id x p):[]) lv
+
+evalVarAux [(Id varName p), (Dot p2), varField] ((name, ty):lv) =
+  if varName == name then getFieldFromVar varField ty
+  else evalVarAux [(Id varName p), (Dot p2), varField] lv
 
 
+getFieldFromVar :: Token -> Type -> Type
+getFieldFromVar fieldName (UserDefined (_, fields, _))  = getFieldFromVarAux fieldName fields
+getFieldFromVar (Id fieldName p) _ = error(fieldMismatchException fieldName p)
 
-
+getFieldFromVarAux :: Token -> Variables -> Type
+getFieldFromVarAux (Id fieldName p) [] = error(fieldMismatchException fieldName p)
+getFieldFromVarAux (Id fieldName p) ((name, t):fields) =
+  if fieldName == name then t
+  else getFieldFromVarAux (Id fieldName p) fields
 
 
 
@@ -732,7 +736,7 @@ findFun name ((n, params, body):lf) = if name == n then (n, params, body)
 
 
 addParametersToMemory :: Token -> [Type] -> Memory -> Memory
-addParametersToMemory (Id name _) args ((varsG, funs), s, ir, irb) = addParametersToMemoryAux args params ((varsG, funs), s, ir, irb)
+addParametersToMemory (Id name _) args ((varsG, funs, uts), s, ir, irb) = addParametersToMemoryAux args params ((varsG, funs, uts), s, ir, irb)
     where (_, params, _) = findFun name funs
 
 addParametersToMemoryAux :: [Type] -> [Token] -> Memory -> Memory
@@ -754,7 +758,7 @@ get_default_value (Id name p) mem = findUserType (Id name p) mem
 
 
 insertVarGlobal :: Token -> Type -> Memory -> Memory
-insertVarGlobal (Id name _) varType ((vars, funs), s, ir, irb) = ((updatedVars, funs), s, ir, irb)
+insertVarGlobal (Id name _) varType ((vars, funs, uts), s, ir, irb) = ((updatedVars, funs, uts), s, ir, irb)
                                                     where updatedVars = addVarToMemory name varType vars
 
 insertVar :: Token -> Type -> Memory -> Memory
@@ -765,36 +769,38 @@ addVarToMemory :: String -> Type -> Variables -> Variables
 addVarToMemory name varType vars = (name, varType):vars
 
 insertSubprogram :: Token -> [Token] -> [Token] -> Memory -> Memory
-insertSubprogram (Id name _) parametersList allTokens ((vars, funs), s, ir, irb) = ((vars, updatedFuns), s, ir, irb)
+insertSubprogram (Id name _) parametersList allTokens ((vars, funs, uts), s, ir, irb) = ((vars, updatedFuns, uts), s, ir, irb)
     where updatedFuns = addSubprogramToMemory name parametersList allTokens funs
 
 addSubprogramToMemory :: String -> [Token] -> [Token] -> Functions -> Functions
 addSubprogramToMemory name parametersList body funs = (name, parametersList, body):funs
 
 -- Exceptions
-notFoundException :: String -> SourcePos
-notFoundException name (l, c) = error ("Variable " ++ name  ++ " not found " ++ "at line " ++ show l ++ ", column " ++ show c)
+notFoundException :: String -> (Int, Int) -> String
+notFoundException name (l, c) = "Variable " ++ name  ++ " not found " ++ "at line " ++ show l ++ ", column " ++ show c
 
-nameInUseException :: String -> SourcePos
-nameInUseException name (l, c) = error ("Name " ++ name  ++ " already in use at line " ++ show l ++ ", column " ++ show c)
+nameInUseException :: String -> (Int, Int) -> String
+nameInUseException name (l, c) = "Name " ++ name  ++ " already in use at line " ++ show l ++ ", column " ++ show c
 
+fieldMismatchException :: String -> (Int, Int) -> String
+fieldMismatchException name (l, c) = "Variable at line" ++ show l ++ ", column " ++ show c ++ " does not have field named " ++ name
 
 
 -- TODO: accept idWithField (x.y)
 -- TODO: Por que fail não é aceito pelo compilador nessa função após o isRunning ser adicionado a memória?
 -- Recebe um idToken, um typeToken, a memória e retorna a memória atualizada
 updateVar :: Token -> Type -> Memory -> Memory
-updateVar (Id name p) val ((gVars, funs), s:ls, ir, irb) = do
+updateVar (Id name p) val ((gVars, funs, uts), s:ls, ir, irb) = do
   let global = updateVarAux (Id name p) val gVars
-  if(global /= []) then ((global, funs), s:ls, ir, irb)
+  if(global /= []) then ((global, funs, uts), s:ls, ir, irb)
   else (do
     let stackVars = updateVarAux (Id name p) val s
-    if(stackVars /= []) then ((gVars, funs), stackVars:ls, ir, irb)
-    else notFoundException name p)
-updateVar (Id name p) val ((gVars, funs), [], ir, irb) = do
+    if(stackVars /= []) then ((gVars, funs, uts), stackVars:ls, ir, irb)
+    else error(notFoundException name p))
+updateVar (Id name p) val ((gVars, funs, uts), [], ir, irb) = do
   let global = updateVarAux (Id name p) val gVars
-  if(global /= []) then ((global, funs), [], ir, irb)
-  else notFoundException name p
+  if(global /= []) then ((global, funs, uts), [], ir, irb)
+  else error(notFoundException name p)
 
 
 updateVarAux :: Token -> Type -> Variables -> Variables
@@ -805,23 +811,23 @@ updateVarAux (Id id1 p) val ((name, Numeric v):lv) =
                                where result = updateVarAux (Id id1 p) val lv
 
 insertUserType :: Token -> Memory -> Memory
-insertUserType idT (g, s, ir, irb) = (ng, s, ir, irb)
-  where ng = insertUserTypeAux idT g
+insertUserType idT ((v, f, uts), s, ir, irb) = ((v, f, newUts), s, ir, irb)
+  where newUts = insertUserTypeAux idT uts
 
-insertUserTypeAux :: Token -> Globals -> Globals
-insertUserTypeAux (Id name p) (v, f, []) = (v, f, (UserDefined (name, [], [])):[])
-insertUserTypeAux (Id name p) (v, f, (utName, _, _):uts) =
-  if name == utName then nameInUseException name p
-  else (v, f, (utName, _, _):(insertUserTypeAux (Id name p) (v, f, uts))
+insertUserTypeAux :: Token -> UserTypes -> UserTypes
+insertUserTypeAux (Id name p) [] = (UserDefined (name, [], [])):[]
+insertUserTypeAux (Id name p) ((UserDefined (utName, vars, funs)):uts) =
+  if name == utName then error(nameInUseException name p)
+  else ((UserDefined (utName, vars, funs)):(insertUserTypeAux (Id name p) uts))
 
 
 findUserType :: Token -> Memory -> Type
-findUserType idT mem = findUserTypeAux idt uts
+findUserType idT mem = findUserTypeAux idT uts
   where uts = getUserTypes mem
 
-findUserTypeAux :: Token -> Variables -> Type
-findUserTypeAux (Id nameSrc p) [] = notFoundException nameSrc p
-findUserTypeAux (Id nameSrc p) (UserDefined (nameTgt, v, f)):uts =
+findUserTypeAux :: Token -> UserTypes -> Type
+findUserTypeAux (Id nameSrc p) [] = error(notFoundException nameSrc p)
+findUserTypeAux (Id nameSrc p) ((UserDefined (nameTgt, v, f)):uts) =
     if nameSrc == nameTgt then (UserDefined (nameTgt, v, f))
     else findUserTypeAux (Id nameSrc p) uts
 
@@ -830,23 +836,23 @@ updateUserTypeVars name vars ((v, f, uts), s, ir, irb) = ((v, f, updatedUts) , s
   where updatedUts = updateUserTypeVarsAux name vars uts
 
 updateUserTypeVarsAux :: Token -> Variables -> UserTypes -> UserTypes
-updateUserTypeVarsAux :: (Id nameSrc p) vars ((UserDefined (nameTgt, v, f)):uts) =
+updateUserTypeVarsAux (Id nameSrc p) vars ((UserDefined (nameTgt, v, f)):uts) =
   if nameSrc == nameTgt then (UserDefined (nameTgt, vars, f)):uts
   else (UserDefined (nameTgt, v, f)):(updateUserTypeVarsAux (Id nameSrc p) vars uts)
 
 updateUserTypeFuns :: Token -> Functions -> Memory -> Memory
 updateUserTypeFuns name funs ((v, f, uts), s, ir, irb) = ((v, f, updatedUts) , s, ir, irb)
-  where updatedUts = updateUserTypeVarsAux name funs uts
+  where updatedUts = updateUserTypeFunsAux name funs uts
 
 updateUserTypeFunsAux :: Token -> Functions -> UserTypes -> UserTypes
-updateUserTypeFunsAux :: (Id nameSrc p) funs ((UserDefined (nameTgt, v, f)):uts) =
+updateUserTypeFunsAux (Id nameSrc p) funs ((UserDefined (nameTgt, v, f)):uts) =
   if nameSrc == nameTgt then (UserDefined (nameTgt, v, funs)):uts
-  else (UserDefined (nameTgt, v, f)):(updateUserTypeVarsAux (Id nameSrc p) funs uts)
+  else (UserDefined (nameTgt, v, f)):(updateUserTypeFunsAux (Id nameSrc p) funs uts)
 
 
 -- invocação do parser para o símbolo de partida 
 parser :: [Token] -> IO (Either ParseError [Token])
-parser tokens = runParserT program (([], []), [], False, False) "Error message" tokens
+parser tokens = runParserT program (([], [], []), [], False, False) "Error message" tokens
 
 main :: IO ()
 main = do a <- getArgs

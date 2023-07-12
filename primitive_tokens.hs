@@ -176,6 +176,10 @@ operationsBlockToken = tokenPrim show update_pos get_token where
   get_token (OperationsBlock p) = Just (OperationsBlock p)
   get_token _ = Nothing
 
+dotToken :: ParsecT [Token] st IO (Token)
+dotToken = tokenPrim show update_pos get_token where
+  get_token (Dot p) = Just (Dot p)
+  get_token _ = Nothing
 
 
 

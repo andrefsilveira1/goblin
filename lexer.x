@@ -50,6 +50,7 @@ tokens :-
   "=="                                  { \p s -> Equiv (getLC p)}
   "!="                                  { \p s -> Diff (getLC p)}
   print                                 { \p s -> Print (getLC p)}
+  "."                                   { \p s -> Dot (getLC p)}
   \" .* \"                              { \p s -> StringLit s (getLC p)}
   $alpha [$alpha $digit \_ \']*         { \p s -> Id s  (getLC p)}
   '"'                                   { \p s -> Quote (getLC p)}
@@ -99,6 +100,7 @@ data Token =
   Equiv                (Int, Int) |
   Diff                 (Int, Int) |
   Print                (Int, Int) |
+  Dot                  (Int, Int) |
   Quote                (Int, Int) |
   Return               (Int, Int)
   deriving (Eq,Show)   
