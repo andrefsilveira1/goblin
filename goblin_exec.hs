@@ -17,6 +17,7 @@ data Type = Numeric Int | Boolean Bool | UserDefined (String, Variables, Functio
 instance Eq Type where
     (Numeric _)  == (Numeric _) = True
     (Boolean _) == (Boolean _) = True
+    (UserDefined (name1, _, _)) == (UserDefined (name2, _, _)) = name1 == name2
     NoValue == NoValue = True
     _ == _ = False
 
@@ -422,7 +423,9 @@ assign = do
           return (a ++ [b] ++ expT, NoValue)
 
 idAcessor :: ParsecT [Token] Memory IO ([Token])
-idAcessor = ([idToken]) <|> idWithField
+idAcessor = (do
+                a <- idToken
+                return [a]) <|> idWithField
 
 idWithField :: ParsecT [Token] Memory IO ([Token])
 idWithField = do
@@ -785,30 +788,45 @@ nameInUseException name (l, c) = "Name " ++ name  ++ " already in use at line " 
 fieldMismatchException :: String -> (Int, Int) -> String
 fieldMismatchException name (l, c) = "Variable at line" ++ show l ++ ", column " ++ show c ++ " does not have field named " ++ name
 
+typeMismatchException :: String -> (Int, Int) -> String
+typeMismatchException name (l, c) = "Type not compatible in assignment of " ++ name ++ " at line" ++ show l ++ ", column " ++ show c
 
--- TODO: accept idWithField (x.y)
--- TODO: Por que fail não é aceito pelo compilador nessa função após o isRunning ser adicionado a memória?
 -- Recebe um idToken, um typeToken, a memória e retorna a memória atualizada
-updateVar :: Token -> Type -> Memory -> Memory
-updateVar (Id name p) val ((gVars, funs, uts), s:ls, ir, irb) = do
-  let global = updateVarAux (Id name p) val gVars
-  if(global /= []) then ((global, funs, uts), s:ls, ir, irb)
+updateVar :: [Token] -> Type -> Memory -> Memory
+updateVar tok val ((gVars, funs, uts), s:ls, ir, irb) = do
+  let newGlobals = updateVarAux tok val gVars
+  if(newGlobals /= []) then ((newGlobals, funs, uts), s:ls, ir, irb)
   else (do
-    let stackVars = updateVarAux (Id name p) val s
-    if(stackVars /= []) then ((gVars, funs, uts), stackVars:ls, ir, irb)
+    let newStackVars = updateVarAux tok val s
+    if(newStackVars /= []) then ((gVars, funs, uts), newStackVars:ls, ir, irb)
     else error(notFoundException name p))
-updateVar (Id name p) val ((gVars, funs, uts), [], ir, irb) = do
-  let global = updateVarAux (Id name p) val gVars
+    where ((Id name p):_) = tok
+updateVar tok val ((gVars, funs, uts), [], ir, irb) = do
+  let global = updateVarAux tok val gVars
   if(global /= []) then ((global, funs, uts), [], ir, irb)
   else error(notFoundException name p)
+  where ((Id name p):_) = tok
 
 
-updateVarAux :: Token -> Type -> Variables -> Variables
-updateVarAux _ _ [] = []
-updateVarAux (Id id1 p) val ((name, Numeric v):lv) =
-                               if id1 == name then (id1, val):lv
-                               else (if result == [] then [] else (name, Numeric v) : result)
-                               where result = updateVarAux (Id id1 p) val lv
+updateVarAux :: [Token] -> Type -> Variables -> Variables
+updateVarAux ((Id id1 p):ts) _ [] = []
+updateVarAux ((Id id1 p):[]) newVal ((name, oldVal):lv) =
+                               if id1 == name then (name, updatedVal):lv
+                               else (if keepLooking /= [] then ((name, oldVal):keepLooking) else [])
+                               where
+                                 keepLooking = updateVarAux ((Id id1 p):[]) newVal lv
+                                 updatedVal = checkType oldVal newVal (Id id1 p)
+
+updateVarAux [(Id varName p), (Dot p2), fieldName] newVal ((name, (UserDefined (utName, fields, funs))):lv) =
+  if varName == name then ((name, (UserDefined (utName, updatedFields, funs))):lv)
+  else (if keepLooking /= [] then (name, (UserDefined (utName, fields, funs))):keepLooking else [])
+  where
+   keepLooking = updateVarAux [(Id varName p), (Dot p2), fieldName] newVal lv
+   updatedFields = updateVarAux (fieldName:[]) newVal fields
+
+checkType :: Type -> Type -> Token -> Type
+checkType oldVal newVal (Id name p) = if oldVal == newVal then newVal else error(typeMismatchException name p)
+
 
 insertUserType :: Token -> Memory -> Memory
 insertUserType idT ((v, f, uts), s, ir, irb) = ((v, f, newUts), s, ir, irb)
