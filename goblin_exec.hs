@@ -52,7 +52,7 @@ getUserTypes ((_, _, uts), _, _, _) = uts
 
 
 getCurrentVars :: Memory -> Variables
-getCurrentVars ((vars, _, _), (sv:_), _, _)  = vars ++ sv
+getCurrentVars ((vars, _, _), (sv:_), _, _)  = sv ++ vars
 getCurrentVars ((vars, _, _), [], _, _) = vars
 
 
