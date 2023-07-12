@@ -948,5 +948,5 @@ main :: IO ()
 main = do a <- getArgs
           case unsafePerformIO (parser (getTokens (a !! 0))) of
             { Left err -> print err; 
-              Right ans -> print ans
+              Right ans -> if debug then (print ans) else (return ())
             }
