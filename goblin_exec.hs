@@ -10,6 +10,10 @@ import Lexer
 import Text.Parsec
 import PrimitiveTokens
 
+
+debug :: Bool
+debug = False
+
 -----------------------------Memory-----------------------------
 
 --type Digit = 0 | 1 | 2...| 9
@@ -292,7 +296,7 @@ varDecl global = do
             else updateState(insertVar b (get_default_value a s))
             c <- semiColonToken
             s <- getState
-            liftIO (printMem s)
+            when(debug) (liftIO (printMem s))
             return ([a] ++ [b] ++ [c])
 
 remainingVarDecls :: Bool -> ParsecT [Token] Memory IO ([Token])
@@ -441,7 +445,7 @@ assign = do
           ce <- canExecute
           when (ce) (updateState(updateVar a expVal))
           e <- getState
-          liftIO (printMem e)
+          when(debug) (liftIO (printMem e))
           return (a ++ [b] ++ expT, NoValue)
 
 idAcessor :: ParsecT [Token] Memory IO ([Token])
@@ -477,7 +481,7 @@ printVar = do
                 comma <- commaToken
                 (expT, expVal) <- expression
                 g <- closeParToken
-                liftIO (printVars string expVal)
+                (liftIO (printVars string expVal))
                 return ([a] ++ [b] ++ [string] ++  [comma] ++ expT ++ [g], NoValue)
 
 
