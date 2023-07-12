@@ -249,6 +249,7 @@ opToSymbol (Div _) = "/"
 opToSymbol (Mod _) = "%"
 opToSymbol (Equiv _) = "=="
 opToSymbol (Diff _) = "!="
+opToSymbol (Id name _) = name
 
 
 
@@ -451,7 +452,7 @@ idAcessor = try idWithField <|> (do
 idWithField :: ParsecT [Token] Memory IO ([Token])
 idWithField = do
                 a <- idToken
-                b <- dotToken --TODO: create
+                b <- dotToken
                 c <- idToken
                 return ([a] ++ [b] ++ [c])
 
@@ -639,7 +640,8 @@ intLit = do
             return ([(Int v p)], Numeric v)
 
 op :: ParsecT [Token] Memory IO (Token)
-op = powToken <|> multToken <|> divToken <|> addToken <|> subToken <|> lessToken <|> greaterToken <|> moduleToken <|> equivalentToken <|> differentToken
+op = powToken <|> multToken <|> divToken <|> addToken <|> subToken <|> lessToken <|>
+     greaterToken <|> moduleToken <|> equivalentToken <|> differentToken <|> idToken
 
 varId :: ParsecT [Token] Memory IO ([Token], Type)
 varId = do 
