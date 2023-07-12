@@ -1,0 +1,12 @@
+vars:
+
+	num x;
+    num y[5];
+
+process:
+
+	//print("Variável: ", x);
+	
+	loop(x = 0; x < 5; x = x + 1;) {
+		print("Chegou ao fim aqui ", x);
+	}

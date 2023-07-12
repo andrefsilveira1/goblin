@@ -26,6 +26,8 @@ tokens :-
   $digit+                               { \p s -> Int (read s)  (getLC p)}
   "("                                   { \p s -> OpenPar  (getLC p)}  
   ")"                                   { \p s -> ClosePar (getLC p)}
+  "["                                   { \p s -> OpenSquareBrackets (getLC p)}
+  "]"                                   { \p s -> CloseSquareBrackets (getLC p)}
   Float                                 { \p s -> Float s (getLC p)}
   Char                                  { \p s -> Char s (getLC p)}  
   types                                 { \p s -> TypesBlock (getLC p)}
@@ -85,6 +87,8 @@ data Token =
   ProcessBlock         (Int, Int) |
   FieldsBlock          (Int, Int) |
   OperationsBlock      (Int, Int) |
+  OpenSquareBrackets   (Int, Int) |
+  CloseSquareBrackets  (Int, Int) |
   OpenCurlyBrackets    (Int, Int) |
   CloseCurlyBrackets   (Int, Int) |
   Equals               (Int, Int) |

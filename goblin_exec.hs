@@ -17,7 +17,7 @@ debug = False
 -----------------------------Memory-----------------------------
 
 --type Digit = 0 | 1 | 2...| 9
-data Type = Numeric Int | Boolean Bool | UserDefined (String, Variables, Functions) | NoValue -- | NumericWithSpec ((Int, [Digit]), (Int, [Digit]))
+data Type = Numeric Int | Boolean Bool | UserDefined (String, Variables, Functions) | Array ([Type], Int) |  NoValue -- | NumericWithSpec ((Int, [Digit]), (Int, [Digit]))
 instance Eq Type where
     (Numeric _)  == (Numeric _) = True
     (Boolean _) == (Boolean _) = True
@@ -288,16 +288,31 @@ varDecls global = (do
 
 
 varDecl :: Bool -> ParsecT [Token] Memory IO ([Token])
-varDecl global = do
+varDecl global = try (varPrimitiveDecl global) <|> (varArrayDecl global)
+
+varPrimitiveDecl :: Bool -> ParsecT [Token] Memory IO ([Token])
+varPrimitiveDecl global = do
+                a <- typeVar
+                b <- idToken
+                c <- semiColonToken
+                s <- getState
+                if global then updateState(insertVarGlobal b (get_default_value a s))
+                else updateState(insertVar b (get_default_value a s))
+                when(debug) (liftIO (printMem s))
+                return ([a] ++ [b] ++ [c])
+
+varArrayDecl :: Bool -> ParsecT [Token] Memory IO ([Token])
+varArrayDecl global = do 
             a <- typeVar
             b <- idToken
+            c <- openSquareBracketsToken
+            (d, (Numeric v)) <- intLit
+            e <- closeSquareBracketsToken
+            f <- semiColonToken
             s <- getState
-            if global then updateState(insertVarGlobal b (get_default_value a s))
-            else updateState(insertVar b (get_default_value a s))
-            c <- semiColonToken
-            s <- getState
-            when(debug) (liftIO (printMem s))
-            return ([a] ++ [b] ++ [c])
+            if global then updateState(insertVarGlobal b (get_default_value_array a s v))
+            else updateState(insertVar b (get_default_value_array a s v))
+            return ([a] ++ [b] ++ [c] ++ d ++ [e] ++ [f])
 
 remainingVarDecls :: Bool -> ParsecT [Token] Memory IO ([Token])
 remainingVarDecls global = (varDecls global) <|> (return [])
@@ -826,6 +841,26 @@ doesUserTypeExist name ((UserDefined (nameUt, _, _)):uts) =
 get_default_value :: Token -> Memory -> Type
 get_default_value (Num "num" _) _ = Numeric 0
 get_default_value (Id name p) mem = findUserType (Id name p) mem
+
+-- Funções para definir valores padrões do array e atualizar os valores do array
+get_default_value_array :: Token -> Memory -> Int -> Type
+get_default_value_array arrType mem 0 = get_default_value arrType mem
+get_default_value_array arrType mem size = Array (get_default_value arrType mem : [tail], size)
+  where tail = get_default_value_array arrType mem (size - 1)
+
+--   -- Array ([0,0,0,0,0], 5)
+
+update_array_value :: Type -> Int -> Type -> Type -> Type
+update_array_value (Array (arr, size)) pos newValue acc
+  | pos < 0 || pos >= size = acc
+  | pos == 0 = Array (newValue : tail arr, size)
+  | otherwise = Array (head arr : updatedTail, size)
+  where
+    updatedTail = tail arr
+    updatedAcc = update_array_value (Array (updatedTail, size - 1)) (pos - 1) newValue acc
+    accWithUpdatedTail = Array (head arr : [updatedAcc], size - 1)
+
+update_array_value _ _ _ acc = acc
 
 
 insertVarGlobal :: Token -> Type -> Memory -> Memory
