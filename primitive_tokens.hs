@@ -181,7 +181,10 @@ dotToken = tokenPrim show update_pos get_token where
   get_token (Dot p) = Just (Dot p)
   get_token _ = Nothing
 
-
+inputToken :: ParsecT [Token] st IO (Token)
+inputToken = tokenPrim show update_pos get_token where
+  get_token (Input p) = Just (Input p)
+  get_token _ = Nothing
 
 
 

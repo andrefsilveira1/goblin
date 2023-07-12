@@ -427,7 +427,7 @@ stmt = singleLineStmt <|> blockStmt
 
 singleLineStmt :: ParsecT [Token] Memory IO ([Token], Type)
 singleLineStmt = do
-                    (a, returnValue) <- (assign <|> printVar <|> returnStmt)
+                    (a, returnValue) <- (assign <|> printVar  <|> returnStmt)
                     b <- semiColonToken
                     return (a ++ [b], returnValue)
 
@@ -483,6 +483,17 @@ printVar = do
                 g <- closeParToken
                 (liftIO (printVars string expVal))
                 return ([a] ++ [b] ++ [string] ++  [comma] ++ expT ++ [g], NoValue)
+
+inputFun :: ParsecT [Token] Memory IO ([Token], Type)
+inputFun = do
+              a <- inputToken
+              b <- openParToken
+              c <- closeParToken
+              (_, hh) <- (do
+                        aaa <- getLine
+                        let oo =  (read aaa :: Int)
+                        return ([], (Numeric oo)))
+              return ([a] ++ [b] ++ [c], hh)
 
 
 
@@ -636,7 +647,7 @@ evalueRemaining numb = do
 
 operand :: ParsecT [Token] Memory IO ([Token], Type)
 operand = try subProgramCall <|>
-          (varId <|> intLit)
+          (inputFun <|> varId <|> intLit)
 
 intLit :: ParsecT [Token] Memory IO ([Token], Type)
 intLit = do
