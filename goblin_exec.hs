@@ -858,13 +858,15 @@ typeMismatchException name (l, c) = "Type not compatible in assignment of " ++ n
 -- Recebe um idToken, um typeToken, a memória e retorna a memória atualizada
 updateVar :: [Token] -> Type -> Memory -> Memory
 updateVar tok val ((gVars, funs, uts), s:ls, ir, irb) = do
-  let newGlobals = updateVarAux tok val gVars
-  if(newGlobals /= []) then ((newGlobals, funs, uts), s:ls, ir, irb)
+  let newStackVars = updateVarAux tok val s
+  if(newStackVars /= []) then ((gVars, funs, uts), newStackVars:ls, ir, irb)
   else (do
-    let newStackVars = updateVarAux tok val s
-    if(newStackVars /= []) then ((gVars, funs, uts), newStackVars:ls, ir, irb)
+    let newGlobals = updateVarAux tok val gVars
+    if(newGlobals /= []) then ((newGlobals, funs, uts), s:ls, ir, irb)
     else error(notFoundException name p))
     where ((Id name p):_) = tok
+
+
 updateVar tok val ((gVars, funs, uts), [], ir, irb) = do
   let global = updateVarAux tok val gVars
   if(global /= []) then ((global, funs, uts), [], ir, irb)
