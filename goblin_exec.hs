@@ -969,6 +969,13 @@ findUserTypeAux (Id nameSrc p) ((UserDefined (nameTgt, v, f)):uts) =
     if nameSrc == nameTgt then (UserDefined (nameTgt, v, f))
     else findUserTypeAux (Id nameSrc p) uts
 
+-- updateArrayType :: Token -> Variables -> Memory -> Memory
+-- updateArrayType name vars ((v, f, uts), s, ir, irb) = ((updatedV, f, uts), s, ir, irb)
+--   where updatedV = updateArrayTypeAux name vars uts
+
+-- updateArrayTypeAux :: Token -> Variables -> UserTypes -> UserTypes
+-- updateArrayTypeAux (Id name p) vars (())
+
 updateUserTypeVars :: Token -> Variables -> Memory -> Memory
 updateUserTypeVars name vars ((v, f, uts), s, ir, irb) = ((v, f, updatedUts) , s, ir, irb)
   where updatedUts = updateUserTypeVarsAux name vars uts
