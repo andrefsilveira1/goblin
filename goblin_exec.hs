@@ -489,11 +489,9 @@ inputFun = do
               a <- inputToken
               b <- openParToken
               c <- closeParToken
-              (_, hh) <- (do
-                        aaa <- getLine
-                        let oo =  (read aaa :: Int)
-                        return ([], (Numeric oo)))
-              return ([a] ++ [b] ++ [c], hh)
+              inputV <- liftIO(getLine)
+              let inputVal = (read kk :: Int)
+              return ([a] ++ [b] ++ [c], (Numeric inputVal))
 
 
 
