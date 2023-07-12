@@ -46,6 +46,9 @@ type Memory = (Globals, Stack, Bool, Bool)
 getFuns :: Memory -> Functions
 getFuns ((_, funs), _, _, _) = funs
 
+getUserTypes :: Memory -> UserTypes
+getUserTypes ((_, _, uts), _, _, _) = uts
+
 
 getCurrentVars :: Memory -> Variables
 getCurrentVars ((vars, _), (sv:_), _, _)  = vars ++ sv
@@ -162,9 +165,10 @@ typeDecl = do
             a <- idToken
             updateState(insertUserType a)
             b <- openCurlyBracketsToken
-            c <- fieldsBlock
-            d <- operationsBlock
-            updateState(updateUserType a c d)
+            (c, vars) <- fieldsBlock
+            updateState(updateUserTypeVars a vars)
+            (d, funs) <- operationsBlock
+            updateState(updateUserTypeVars a funs)
             z <- closeCurlyBracketsToken
             return ([a] ++ [b] ++ [c])
 
@@ -172,46 +176,59 @@ remainingTypeDecls :: ParsecT [Token] Memory IO ([Token])
 remainingTypeDecls = (typeDecls) <|> (return [])
 
 
-fieldsBlock :: ParsecT [Token] Memory IO ([Token], [Variables])
+fieldsBlock :: ParsecT [Token] Memory IO ([Token], Variables)
 fieldsBlock = do
                 a <- fieldsBlockToken
                 b <- colonToken
                 (c, fieldVars) <- fields
                 return ([a] ++ [b] ++ c, fieldVars)
 
-fields :: ParsecT [Token] Memory IO ([Token], [Variables])
+fields :: ParsecT [Token] Memory IO ([Token], Variables)
 fields = do
             (a, fieldVar) <- field
             (b, fieldVars) <- remainingFields
             return (a ++ b, fieldVar:fieldVars)
 
 field :: ParsecT [Token] Memory IO ([Token], Variable)
-field = programField <|> userField
+field = do
+           a <- typeVar
+           (Id fieldName p) <- idToken
+           c <- semiColonToken
+           s <- getState
+           return (a ++ (Id fieldName p) ++ c, (fieldName,  (get_default_value a s)))
 
-remainingFields :: ParsecT [Token] Memory IO ([Token], [Variables])
+remainingFields :: ParsecT [Token] Memory IO ([Token], Variables)
 remainingFields = (fields) <|> (return [])
 
-programField :: ParsecT [Token] Memory IO ([Token], Variable)
-programField = do
-                  a <- typeVar
-                  (Id name p) <- idToken
-                  c <- semiColonToken
-                  return (a ++ (Id name p) ++ c, (name, (get_default_value a)))
 
-userField :: ParsecT [Token] Memory IO ([Token], Variable])
-userField = do
-               typeName <- idToken
-               (Id fieldName p) <- idToken
-               c <- semiColonToken
-               s <- getState
-               let userType = findUserType typeName s
-               return (typeName ++ (Id fieldName p) ++ c, (fieldName, userType))
+operationsBlock :: ParsecT [Token] Memory IO ([Token], Functions)
+operationsBlock = do
+               a <- operationsBlockToken
+               b <- colonToken
+               (c, operationFunctions) <- operations
+               return ([a] ++ [b] ++ c, operationFunctions)
 
+operations :: ParsecT [Token] Memory IO ([Token], Functions)
+operations = do
+            (a, operationFun) <- operation
+            (b, operationFuns) <- remainingOperations
+            return (a ++ b, operationFun:operationFuns)
 
+remainingOperations :: ParsecT [Token] Memory IO ([Token])
+remainingOperations = (operations) <|> (return [])
 
-
-
-
+operation :: ParsecT [Token] Memory IO ([Token], Function)
+operation = do
+              a <- typeVar
+              (Id name p) <- idToken
+              updateState(pushMemStack)
+              c <- openParToken
+              d <- parametersList
+              e <- closeParToken
+              (f, _) <- subProgramBody
+              updateState(popMemStack)
+              let allTokens = [a] ++ [(Id name p)] ++ [c] ++ d ++ [e] ++ f
+              return (allTokens, (name, d, f))
 
 
 
@@ -249,7 +266,7 @@ varDecl = do
             a <- typeVar
             b <- idToken
             s <- getState
-            updateState(insertVarGlobal b (get_default_value a))
+            updateState(insertVarGlobal b (get_default_value a s))
             c <- semiColonToken
             s <- getState
             liftIO (printMem s)
@@ -260,16 +277,15 @@ remainingVarDecls = (varDecls) <|> (return [])
 
 
 typeVar :: ParsecT [Token] Memory IO (Token)
-typeVar = 
-          (numType) 
+typeVar = (numType) <|> (userDefinedType)
           -- <|> (othersTypeToken)
-
-
 
 numType :: ParsecT [Token] Memory IO (Token)
 numType = 
           (numToken) <|> (numWithSpecificationToken)
 
+userDefinedType :: ParsecT [Token] Memory IO (Token)
+userDefinedType = idToken
 
 
 
@@ -309,10 +325,8 @@ subProgram = do
                 c <- openParToken
                 d <- parametersList
                 e <- closeParToken
-                s <- getState
                 (f, _) <- subProgramBody
                 updateState(popMemStack)
-                s <- getState
                 let allTokens = [a] ++ [b] ++ [c] ++ d ++ [e] ++ f
                 updateState(insertSubprogram b d f)
                 return (allTokens)
@@ -328,8 +342,8 @@ typeAndId :: ParsecT [Token] Memory IO ([Token])
 typeAndId = do 
                 a <- typeVar
                 b <- idToken
-                c <- getState
-                updateState(insertVar b (get_default_value a))
+                s <- getState
+                updateState(insertVar b (get_default_value a s))
                 return ([a] ++ [b])
 
 remainingParameters :: ParsecT [Token] Memory IO ([Token])
@@ -340,8 +354,7 @@ remainingParameters = (do
 
 
 remainingSubPrograms :: ParsecT [Token] Memory IO ([Token])
-remainingSubPrograms = 
-                      (subProgram) <|> (return [])
+remainingSubPrograms = (subPrograms) <|> (return [])
 
 
 subProgramBody :: ParsecT [Token] Memory IO ([Token], Type)
@@ -399,15 +412,24 @@ remainingStmts = (stmts) <|> (return ([], NoValue))
 
 assign :: ParsecT [Token] Memory IO ([Token], Type)
 assign = do
-          a <- idToken
+          a <- lhsAssign
           b <- equalsToken
           (expT, expVal) <- expression
           ce <- canExecute
           when (ce) (updateState(updateVar a expVal))
           e <- getState
           liftIO (printMem e)
-          return ([a] ++ [b] ++ expT, NoValue)
+          return (a ++ [b] ++ expT, NoValue)
 
+lhsAssign :: ParsecT [Token] Memory IO ([Token])
+lhsAssign = ([idToken]) <|> idWithField
+
+idWithField :: ParsecT [Token] Memory IO ([Token])
+idWithField = do
+                a <- idToken
+                b <- dotToken --TODO: create
+                c <- idToken
+                return ([a] ++ [b] ++ [c])
 
 expression :: ParsecT [Token] Memory IO ([Token], Type)
 expression = try binOp <|> unaryExpression
@@ -726,8 +748,9 @@ addParametersToMemoryAux [] [] mem = mem
 
 
 
-get_default_value :: Token -> Type
-get_default_value (Num "num" _) = Numeric 0
+get_default_value :: Token -> Memory -> Type
+get_default_value (Num "num" _) _ = Numeric 0
+get_default_value (Id name p) mem = findUserType (Id name p) mem
 
 
 insertVarGlobal :: Token -> Type -> Memory -> Memory
@@ -757,6 +780,7 @@ nameInUseException name (l, c) = error ("Name " ++ name  ++ " already in use at 
 
 
 
+-- TODO: accept idWithField (x.y)
 -- TODO: Por que fail não é aceito pelo compilador nessa função após o isRunning ser adicionado a memória?
 -- Recebe um idToken, um typeToken, a memória e retorna a memória atualizada
 updateVar :: Token -> Type -> Memory -> Memory
@@ -785,14 +809,15 @@ insertUserType idT (g, s, ir, irb) = (ng, s, ir, irb)
   where ng = insertUserTypeAux idT g
 
 insertUserTypeAux :: Token -> Globals -> Globals
+insertUserTypeAux (Id name p) (v, f, []) = (v, f, (UserDefined (name, [], [])):[])
 insertUserTypeAux (Id name p) (v, f, (utName, _, _):uts) =
   if name == utName then nameInUseException name p
-  else insertUserTypeAux (Id name p) (v, f, uts)
-insertUserTypeAux (Id name p) (v, f, []) = (v, f, (UserDefined (name, [], [])):[])
+  else (v, f, (utName, _, _):(insertUserTypeAux (Id name p) (v, f, uts))
 
 
 findUserType :: Token -> Memory -> Type
-findUserType idT ((_, _, uts), _, _, _) = findUserTypeAux idt uts
+findUserType idT mem = findUserTypeAux idt uts
+  where uts = getUserTypes mem
 
 findUserTypeAux :: Token -> Variables -> Type
 findUserTypeAux (Id nameSrc p) [] = notFoundException nameSrc p
@@ -800,6 +825,23 @@ findUserTypeAux (Id nameSrc p) (UserDefined (nameTgt, v, f)):uts =
     if nameSrc == nameTgt then (UserDefined (nameTgt, v, f))
     else findUserTypeAux (Id nameSrc p) uts
 
+updateUserTypeVars :: Token -> Variables -> Memory -> Memory
+updateUserTypeVars name vars ((v, f, uts), s, ir, irb) = ((v, f, updatedUts) , s, ir, irb)
+  where updatedUts = updateUserTypeVarsAux name vars uts
+
+updateUserTypeVarsAux :: Token -> Variables -> UserTypes -> UserTypes
+updateUserTypeVarsAux :: (Id nameSrc p) vars ((UserDefined (nameTgt, v, f)):uts) =
+  if nameSrc == nameTgt then (UserDefined (nameTgt, vars, f)):uts
+  else (UserDefined (nameTgt, v, f)):(updateUserTypeVarsAux (Id nameSrc p) vars uts)
+
+updateUserTypeFuns :: Token -> Functions -> Memory -> Memory
+updateUserTypeFuns name funs ((v, f, uts), s, ir, irb) = ((v, f, updatedUts) , s, ir, irb)
+  where updatedUts = updateUserTypeVarsAux name funs uts
+
+updateUserTypeFunsAux :: Token -> Functions -> UserTypes -> UserTypes
+updateUserTypeFunsAux :: (Id nameSrc p) funs ((UserDefined (nameTgt, v, f)):uts) =
+  if nameSrc == nameTgt then (UserDefined (nameTgt, v, funs)):uts
+  else (UserDefined (nameTgt, v, f)):(updateUserTypeVarsAux (Id nameSrc p) funs uts)
 
 
 -- invocação do parser para o símbolo de partida 
