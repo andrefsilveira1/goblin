@@ -6,23 +6,29 @@ types:
             num i;
 
         operations:
-            complex +(complex x, complex y) {
+            complex +(complex a, complex b) {
                 vars:
                     complex result;
                 process:
-                    result.r = x.r + y.r;
-                    result.i = x.i + y.i
+                    result.r = a.r + b.r;
+                    result.i = a.i + b.i;
                     return result;
             }
     }
 
 vars:
   complex x;
+  complex y;
 
 
 process:
   x.r = 10;
   x.i = 20;
 
+  y = x + x;
+
   print("x.r: " , x.r);
   print("x.i: " , x.i);
+
+  print("y.r: " , y.r);
+  print("y.i: " , y.i);

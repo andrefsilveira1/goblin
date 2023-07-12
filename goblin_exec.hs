@@ -100,7 +100,8 @@ printMem mem = print (printMemVars (getCurrentVars mem) ++ "FUNS: " ++ printMemF
 printMemVars :: Variables -> String
 printMemVars  [] = []
 printMemVars ((name, Numeric val):lv) = name ++ " " ++ show val ++ ", " ++ printMemVars lv
-printMemVars ((name, NoValue):lv) = name ++ " " ++ "erroooooo" ++ ", " ++ printMemVars lv
+printMemVars ((name, (UserDefined (utName, fields, funs))):lv) = name ++ "[" ++ utName ++ "]{ fields: " ++ (printMemVars fields) ++ "}, " ++ printMemVars lv
+printMemVars ((name, NoValue):lv) = name ++ " " ++ "Fatal Error!!!" ++ ", " ++ printMemVars lv
 
 
 printMemFuns :: Functions -> String
@@ -133,7 +134,7 @@ printVars (StringLit value _) tok = putStrLn (init(tail(value)) ++ auxPrint(tok)
 program :: ParsecT [Token] Memory IO ([Token]) -- Memory define o tipo do user state
 program = do
             a <- typesBlock
-            b <- varsBlock
+            b <- varsBlock True
             c <- subprogramsBlock
             updateState(beginExecution)
             (d, _) <- processBlock
@@ -221,15 +222,34 @@ remainingOperations = (operations) <|> (return ([], []))
 operation :: ParsecT [Token] Memory IO ([Token], Function)
 operation = do
               a <- typeVar
-              (Id name p) <- idToken
+              (b, name) <- operationName
               updateState(pushMemStack)
               c <- openParToken
               d <- parametersList
               e <- closeParToken
               (f, _) <- subProgramBody
               updateState(popMemStack)
-              let allTokens = [a] ++ [(Id name p)] ++ [c] ++ d ++ [e] ++ f
+              let allTokens = [a] ++ [b] ++ [c] ++ d ++ [e] ++ f
               return (allTokens, (name, d, f))
+
+operationName :: ParsecT [Token] Memory IO (Token, String)
+operationName = (do
+                  a <- op
+                  return (a, opToSymbol a)) <|>
+                (do
+                  (Id name p) <- idToken
+                  return((Id name p), name))
+
+opToSymbol :: Token -> String
+opToSymbol (Pow _) = "^"
+opToSymbol (Mult _) = "*"
+opToSymbol (Add _) = "+"
+opToSymbol (Sub _) = "-"
+opToSymbol (Div _) = "/"
+opToSymbol (Mod _) = "%"
+opToSymbol (Equiv _) = "=="
+opToSymbol (Diff _) = "!="
+
 
 
 
@@ -248,33 +268,34 @@ operation = do
 
 -------------------------------varsBlock-------------------------------
 
-varsBlock :: ParsecT [Token] Memory IO ([Token])
-varsBlock = (do 
+varsBlock :: Bool -> ParsecT [Token] Memory IO ([Token])
+varsBlock global = (do
               a <- varsBlockToken
               b <- colonToken
-              c <- varDecls
+              c <- varDecls global
               return ([a] ++ [b] ++ c)) <|> (return [])
 
-varDecls :: ParsecT [Token] Memory IO ([Token])
-varDecls = (do 
-              a <- varDecl
-              b <- remainingVarDecls
+varDecls :: Bool -> ParsecT [Token] Memory IO ([Token])
+varDecls global = (do
+              a <- varDecl global
+              b <- remainingVarDecls global
               return (a ++ b))
 
 
-varDecl :: ParsecT [Token] Memory IO ([Token])
-varDecl = do
+varDecl :: Bool -> ParsecT [Token] Memory IO ([Token])
+varDecl global = do
             a <- typeVar
             b <- idToken
             s <- getState
-            updateState(insertVarGlobal b (get_default_value a s))
+            if global then updateState(insertVarGlobal b (get_default_value a s))
+            else updateState(insertVar b (get_default_value a s))
             c <- semiColonToken
             s <- getState
             liftIO (printMem s)
             return ([a] ++ [b] ++ [c])
 
-remainingVarDecls :: ParsecT [Token] Memory IO ([Token])
-remainingVarDecls = (varDecls) <|> (return [])
+remainingVarDecls :: Bool -> ParsecT [Token] Memory IO ([Token])
+remainingVarDecls global = (varDecls global) <|> (return [])
 
 
 typeVar :: ParsecT [Token] Memory IO (Token)
@@ -361,7 +382,7 @@ remainingSubPrograms = (subPrograms) <|> (return [])
 subProgramBody :: ParsecT [Token] Memory IO ([Token], Type)
 subProgramBody = do 
                     a <- openCurlyBracketsToken
-                    b <- varsBlock
+                    b <- varsBlock False
                     (c, returnValue) <- processBlock
                     d <- closeCurlyBracketsToken
                     return ([a] ++ b ++ c ++ [d], returnValue)
@@ -423,9 +444,9 @@ assign = do
           return (a ++ [b] ++ expT, NoValue)
 
 idAcessor :: ParsecT [Token] Memory IO ([Token])
-idAcessor = (do
+idAcessor = try idWithField <|> (do
                 a <- idToken
-                return [a]) <|> idWithField
+                return [a])
 
 idWithField :: ParsecT [Token] Memory IO ([Token])
 idWithField = do
@@ -603,7 +624,8 @@ evalueRemaining :: Type -> ParsecT [Token] Memory IO ([Token], Type)
 evalueRemaining numb = do
                       a <- op
                       (operandT, operandV) <- operand
-                      (tok, val) <- evalueRemaining (evalOp numb a operandV)
+                      eval <- evalOp numb a operandV
+                      (tok, val) <- evalueRemaining (eval)
                       return ([a] ++ operandT ++ tok, val)
                     <|> return ([], numb)
 
@@ -633,23 +655,23 @@ subProgramCall = do
                   (c, valList) <- argumentList
                   d <- closeParToken
                   ce <- canExecute
-                  v <- if (ce) then (
+                  v <- if ce then (
                     do
+                      updateState(pushMemStack)
 
-                        updateState(pushMemStack)
+                      updateState(addParametersToMemory (Id funName p) valList)
 
-                        updateState(addParametersToMemory (Id funName p) valList)
+                      s <- getState
+                      let (_, _, funBody) = findFun funName (getFuns s)
+                      inp <- getInput
+                      setInput funBody
+                      (_, v) <- subProgramBody
+                      setInput inp
 
-                        s <- getState
-                        let (_, _, funBody) = findFun funName (getFuns s)
-                        inp <- getInput
-                        setInput funBody
-                        (_, v) <- subProgramBody
-                        setInput inp
-
-                        updateState(popMemStack)
-                        return (v))
-                    else (do
+                      updateState(popMemStack)
+                      return (v))
+                    else (
+                      do
                         let v = NoValue
                         return (v))
 
@@ -684,26 +706,58 @@ canExecute = do
                 return (isRunning s && isBlockRunning s)
 
 
-evalOp :: Type -> Token -> Type -> Type
-evalOp (Numeric x) (Pow _) (Numeric y) = Numeric (x ^ y)
-evalOp (Numeric x) (Mult _) (Numeric y) = Numeric (x * y)
-evalOp (Numeric x) (Div _) (Numeric y) = Numeric (x `div` y)
-evalOp (Numeric x) (Add _) (Numeric y) = Numeric (x + y)
-evalOp (Numeric x) (Sub _) (Numeric y) = Numeric (x - y)
-evalOp (Numeric x) (Greater _) (Numeric y) = Boolean (x > y)
-evalOp (Numeric x) (Less _) (Numeric y) = Boolean (x < y)
-evalOp (Numeric x) (Mod _) (Numeric y) = Numeric (x `mod` y)
-evalOp (Numeric x) (Equiv _) (Numeric y) = Boolean (x == y)
-evalOp (Numeric x) (Diff _) (Numeric y) = Boolean (x /= y)
+-- TODO: find way to throw exception in type mismatch
+evalOp :: Type -> Token -> Type -> ParsecT [Token] Memory IO (Type)
+evalOp (Numeric x) (Pow _) (Numeric y) = return (Numeric (x ^ y))
+evalOp (Numeric x) (Mult _) (Numeric y) = return (Numeric (x * y))
+evalOp (Numeric x) (Div _) (Numeric y) = return (Numeric (x `div` y))
+evalOp (Numeric x) (Add _) (Numeric y) = return (Numeric (x + y))
+evalOp (Numeric x) (Sub _) (Numeric y) = return (Numeric (x - y))
+evalOp (Numeric x) (Greater _) (Numeric y) = return (Boolean (x > y))
+evalOp (Numeric x) (Less _) (Numeric y) = return (Boolean (x < y))
+evalOp (Numeric x) (Mod _) (Numeric y) = return (Numeric (x `mod` y))
+evalOp (Numeric x) (Equiv _) (Numeric y) = return (Boolean (x == y))
+evalOp (Numeric x) (Diff _) (Numeric y) = return (Boolean (x /= y))
+evalOp (UserDefined (name1, fields1, funs1)) op (UserDefined (name2, fields2, funs2)) =
+  if name1 == name2 then evalUserTypeOp (UserDefined (name1, fields1, funs1)) (UserDefined (name2, fields2, funs2)) (opToSymbol op)
+  else error(typeMismatchException name1 (0, 0))
 
+evalUserTypeOp :: Type -> Type -> String -> ParsecT [Token] Memory IO (Type)
+evalUserTypeOp (UserDefined (name1, fields1, (opName, param, body):funs1)) operand2 op =
+  if opName == op then callOperation (UserDefined (name1, fields1, (opName, param, body):funs1)) operand2 param body
+  else evalUserTypeOp (UserDefined (name1, fields1, funs1)) operand2 op
+
+callOperation :: Type -> Type -> [Token] -> [Token] -> ParsecT [Token] Memory IO (Type)
+callOperation a1 a2 params body =
+  do
+     ce <- canExecute
+     v <- if ce then (
+       do
+         updateState(pushMemStack)
+
+         updateState(addParametersToMemoryAux [a1, a2] params)
+
+         inp <- getInput
+         setInput body
+         (_, v) <- subProgramBody
+         setInput inp
+
+         updateState(popMemStack)
+         return (v))
+       else (
+         do
+           let v = NoValue
+           return (v))
+
+     return (v)
 
 evalVar :: [Token] -> Memory -> Type
 evalVar t mem = evalVarAux t (getCurrentVars mem)
 
 evalVarAux :: [Token] -> Variables -> Type
 evalVarAux ((Id x p):ts) [] = error(notFoundException x p)
-evalVarAux ((Id x p):[]) ((name, Numeric v):lv) =
-  if x == name then Numeric v
+evalVarAux ((Id x p):[]) ((name, ty):lv) =
+  if x == name then ty
   else evalVarAux ((Id x p):[]) lv
 
 evalVarAux [(Id varName p), (Dot p2), varField] ((name, ty):lv) =
@@ -744,15 +798,23 @@ addParametersToMemory (Id name _) args ((varsG, funs, uts), s, ir, irb) = addPar
 
 addParametersToMemoryAux :: [Type] -> [Token] -> Memory -> Memory
 addParametersToMemoryAux (val:args) ((Id paramName pp):params) mem =
-    addParametersToMemoryAux args params updatedMem
+    if(paramNameIsUserTypeName) then addParametersToMemoryAux (val:args) params mem
+    else addParametersToMemoryAux args params updatedMem
         where
             updatedMem = insertVar (Id paramName pp) val mem
+            paramNameIsUserTypeName = doesUserTypeExist paramName (getUserTypes mem)
 
 -- In case of a collon or type in the paramList
 addParametersToMemoryAux args ((Comma _):params) mem = addParametersToMemoryAux args params mem
 addParametersToMemoryAux args ((Num _ _):params) mem = addParametersToMemoryAux args params mem
 addParametersToMemoryAux [] [] mem = mem
 
+
+doesUserTypeExist :: String -> UserTypes -> Bool
+doesUserTypeExist name [] = False
+doesUserTypeExist name ((UserDefined (nameUt, _, _)):uts) =
+  if name == nameUt then True
+  else doesUserTypeExist name uts
 
 
 get_default_value :: Token -> Memory -> Type
@@ -790,6 +852,8 @@ fieldMismatchException name (l, c) = "Variable at line" ++ show l ++ ", column "
 
 typeMismatchException :: String -> (Int, Int) -> String
 typeMismatchException name (l, c) = "Type not compatible in assignment of " ++ name ++ " at line" ++ show l ++ ", column " ++ show c
+
+
 
 -- Recebe um idToken, um typeToken, a memória e retorna a memória atualizada
 updateVar :: [Token] -> Type -> Memory -> Memory
