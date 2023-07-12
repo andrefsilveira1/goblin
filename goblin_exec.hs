@@ -463,6 +463,19 @@ assign = do
           when(debug) (liftIO (printMem e))
           return (a ++ [b] ++ expT, NoValue)
 
+-- assignArray :: ParsecT [Token] Memory IO ([Token], Type)
+-- assignArray = do
+--           a <- idAcessor
+--           b <- openCurlyBracketsToken
+--           (c, (Numeric pos)) <- intLit
+--           d <- equalsToken
+--           (expT, expVal) <- expression
+--           ce <- canExecute
+--           -- let newArray = update_array_value arrayToUpdate pos expVal NoValue
+--           e <- getState
+--           when(debug) (liftIO (printMem e))
+--           return (a ++ [b] ++ expT, NoValue)
+
 idAcessor :: ParsecT [Token] Memory IO ([Token])
 idAcessor = try idWithField <|> (do
                 a <- idToken

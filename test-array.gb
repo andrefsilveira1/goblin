@@ -5,8 +5,8 @@ vars:
 
 process:
 
+    //y[0] = 1;
 	//print("Variável: ", x);
-	
 	loop(x = 0; x < 5; x = x + 1;) {
 		print("Chegou ao fim aqui ", x);
 	}
