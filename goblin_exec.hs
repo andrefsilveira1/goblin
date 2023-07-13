@@ -12,7 +12,7 @@ import PrimitiveTokens
 
 
 debug :: Bool
-debug = False
+debug = True
 
 -----------------------------Memory-----------------------------
 
@@ -490,7 +490,7 @@ inputFun = do
               b <- openParToken
               c <- closeParToken
               inputV <- liftIO(getLine)
-              let inputVal = (read kk :: Int)
+              let inputVal = (read inputV :: Int)
               return ([a] ++ [b] ++ [c], (Numeric inputVal))
 
 
